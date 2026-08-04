@@ -1,0 +1,21 @@
+# Only backend + frontend are published to this repo.
+/scripts/
+/*.tsx
+/*.ts
+/*.md
+
+# Secrets & local env
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+!**/.env.example
+
+# Dependencies & builds
+**/node_modules/
+**/dist/
+**/dist-ssr/
+*.log
+.DS_Store
+**/tsconfig.tsbuildinfo
