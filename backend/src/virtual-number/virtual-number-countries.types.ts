@@ -8,6 +8,7 @@ export type VirtualNumberCountry = {
   price: number
   toman: number
   quality: VirtualNumberQuality
+  available: boolean
 }
 
 export type VirtualNumberCountryGroup = {

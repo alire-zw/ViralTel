@@ -1,9 +1,10 @@
 import { redis } from '../redis/client.js'
 import type { VirtualNumberCountry, VirtualNumberCountryGroup } from './virtual-number-countries.types.js'
 
-export const VIRTUAL_NUMBER_COUNTRIES_CACHE_TTL_SECONDS = 60 * 60
+/** Keep TTL longer than the cron interval so the cache never goes empty between refreshes. */
+export const VIRTUAL_NUMBER_COUNTRIES_CACHE_TTL_SECONDS = 15 * 60
 
-const CACHE_KEY_PREFIX = 'virtual-number:countries:v3'
+const CACHE_KEY_PREFIX = 'virtual-number:countries:v7'
 
 function buildCacheKey(noneReport: boolean): string {
   return `${CACHE_KEY_PREFIX}:${noneReport ? 'clean' : 'all'}`
@@ -29,7 +30,8 @@ function isValidGroups(value: unknown): value is VirtualNumberCountryGroup[] {
           typeof item.country === 'string' &&
           typeof item.flagCode === 'string' &&
           typeof item.price === 'number' &&
-          typeof item.toman === 'number',
+          typeof item.toman === 'number' &&
+          typeof item.available === 'boolean',
       ),
   )
 }
@@ -52,10 +54,21 @@ export async function readCachedVirtualNumberCountries(
   }
 }
 
+export async function clearCachedVirtualNumberCountries(noneReport?: boolean): Promise<void> {
+  if (noneReport === undefined) {
+    await redis.del(buildCacheKey(true), buildCacheKey(false))
+    return
+  }
+
+  await redis.del(buildCacheKey(noneReport))
+}
+
 export async function writeCachedVirtualNumberCountries(
   noneReport: boolean,
   groups: VirtualNumberCountryGroup[],
 ): Promise<void> {
+  // Replace previous snapshot for this key (delete then set with TTL).
+  await clearCachedVirtualNumberCountries(noneReport)
   await redis.set(
     buildCacheKey(noneReport),
     JSON.stringify(groups),

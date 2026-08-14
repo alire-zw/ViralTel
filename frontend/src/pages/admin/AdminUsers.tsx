@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
 import { fetchAdminUsers } from '../../lib/adminApi'
@@ -138,7 +139,7 @@ export function AdminUsersPage() {
       {loading ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : items.length === 0 ? (
-        <p className="admin__muted">کاربری پیدا نشد</p>
+        <EmptyState title="کاربری پیدا نشد" />
       ) : (
         <ul className="admin__list">
           {items.map((user) => (

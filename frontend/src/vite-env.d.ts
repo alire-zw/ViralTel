@@ -10,10 +10,14 @@ interface TelegramWebApp {
   themeParams: Record<string, string>
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
+  /** Bot API 7.10+ — also applied to Android system navigation bar. */
+  setBottomBarColor?: (color: string) => void
+  bottomBarColor?: string
   onEvent?: (eventType: string, callback: (event?: { req_id?: string }) => void) => void
   offEvent?: (eventType: string, callback: (event?: { req_id?: string }) => void) => void
   initData: string
   initDataUnsafe: {
+    start_param?: string
     user?: {
       id: number
       first_name: string

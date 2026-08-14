@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { ImageLightbox } from '../../components/ImageLightbox'
 import ArrowBackIcon from '../../components/icons/ArrowBackIcon'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
@@ -30,6 +31,17 @@ const STATUS_FILTERS = [
   { value: 'closed', label: 'بسته' },
 ]
 
+const CATEGORY_FILTERS = [
+  { value: 'all', label: 'همه دسته‌ها' },
+  { value: 'sales', label: 'فروش' },
+  { value: 'product', label: 'محصول' },
+  { value: 'kyc', label: 'احراز' },
+  { value: 'wallet', label: 'کیف پول' },
+  { value: 'other', label: 'سایر' },
+]
+
+const CATEGORY_ORDER = ['sales', 'product', 'kyc', 'wallet', 'other'] as const
+
 function formatFaTime(value: string): string {
   return new Date(value).toLocaleTimeString('fa-IR', {
     hour: '2-digit',
@@ -58,6 +70,7 @@ export function AdminTicketsPage() {
   const { haptic } = useTelegram()
   const { ready, allowed } = useAdminAccess()
   const [status, setStatus] = useState('all')
+  const [category, setCategory] = useState('all')
   const [page, setPage] = useState(1)
   const [items, setItems] = useState<AdminTicketListItem[]>([])
   const [totalPages, setTotalPages] = useState(1)
@@ -75,6 +88,41 @@ export function AdminTicketsPage() {
     message: string
     type: 'success' | 'error' | 'warning' | 'info'
   }>({ show: false, message: '', type: 'error' })
+
+  const groupedItems = useMemo(() => {
+    if (category !== 'all') {
+      if (items.length === 0) return []
+      return [
+        {
+          key: category,
+          label:
+            items[0]?.categoryLabel ??
+            CATEGORY_FILTERS.find((item) => item.value === category)?.label ??
+            category,
+          items,
+        },
+      ]
+    }
+
+    const byCategory = new Map<string, AdminTicketListItem[]>()
+    for (const ticket of items) {
+      const list = byCategory.get(ticket.category) ?? []
+      list.push(ticket)
+      byCategory.set(ticket.category, list)
+    }
+
+    return CATEGORY_ORDER.flatMap((key) => {
+      const groupItems = byCategory.get(key)
+      if (!groupItems?.length) return []
+      return [
+        {
+          key,
+          label: groupItems[0]?.categoryLabel ?? key,
+          items: groupItems,
+        },
+      ]
+    })
+  }, [category, items])
 
   const closePanel = useCallback(() => {
     setPanelVisible(false)
@@ -100,6 +148,7 @@ export function AdminTicketsPage() {
         page,
         limit: 20,
         status: status === 'all' ? undefined : status,
+        category: category === 'all' ? undefined : category,
       })
       setItems(result.items)
       setTotalPages(result.totalPages)
@@ -112,7 +161,7 @@ export function AdminTicketsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, status])
+  }, [category, page, status])
 
   useEffect(() => {
     if (!ready || !allowed) return
@@ -121,7 +170,7 @@ export function AdminTicketsPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [status])
+  }, [status, category])
 
   useEffect(() => {
     if (selectedId == null) {
@@ -272,7 +321,7 @@ export function AdminTicketsPage() {
                 {detailLoading && !detail ? (
                   <p className="support__muted">در حال بارگذاری…</p>
                 ) : !detail ? (
-                  <p className="support__muted">تیکت پیدا نشد</p>
+                  <EmptyState compact title="تیکت پیدا نشد" />
                 ) : (
                   <div className="support__messages">
                     {detail.messages.map((message) => {
@@ -382,54 +431,75 @@ export function AdminTicketsPage() {
                 </button>
               ))}
             </div>
+            <div className="admin__filters">
+              {CATEGORY_FILTERS.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  className={`admin__chip${category === item.value ? ' admin__chip--active' : ''}`}
+                  onClick={() => {
+                    haptic('light')
+                    setCategory(item.value)
+                  }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
         }
       >
         {loading ? (
           <p className="admin__muted">در حال بارگذاری…</p>
         ) : items.length === 0 ? (
-          <p className="admin__muted">تیکتی ثبت نشده</p>
+          <EmptyState title="تیکتی ثبت نشده" />
         ) : (
-          <ul className="admin__list">
-            {items.map((ticket) => (
-              <li key={ticket.id}>
-                <button
-                  type="button"
-                  className="admin__row"
-                  onClick={() => void openTicket(ticket.id)}
-                >
-                  <div className="admin__row-top">
-                    <span className="admin__row-title">
-                      {ticketTitle(ticket.ticketCode, ticket.subject)}
-                    </span>
-                    <span
-                      className={orderStatusBadgeClass(
-                        ticket.status === 'closed'
-                          ? 'failed'
-                          : ticket.status === 'answered'
-                            ? 'completed'
-                            : 'pending',
-                      )}
-                    >
-                      {ticketStatusLabel(ticket.status)}
-                    </span>
-                  </div>
-                  <div className="admin__row-meta">
-                    {displayUsername(ticket.user)}
-                    {ticket.categoryLabel ? ` · ${ticket.categoryLabel}` : ''}
-                    {ticket.orderId ? ` · ${ticket.orderId}` : ''}
-                    {' · '}
-                    {formatFaDateLong(ticket.updatedAt)}
-                  </div>
-                  {ticket.lastMessage && (
-                    <div className="admin__row-meta">
-                      {ticket.lastMessage.body.slice(0, 80)}
-                    </div>
-                  )}
-                </button>
-              </li>
+          <div className="admin-ticket-groups">
+            {groupedItems.map((group) => (
+              <section key={group.key} className="admin-ticket-group">
+                <h3 className="admin-ticket-group__title">{group.label}</h3>
+                <ul className="admin__list">
+                  {group.items.map((ticket) => (
+                    <li key={ticket.id}>
+                      <button
+                        type="button"
+                        className="admin__row"
+                        onClick={() => void openTicket(ticket.id)}
+                      >
+                        <div className="admin__row-top">
+                          <span className="admin__row-title">
+                            {ticketTitle(ticket.ticketCode, ticket.subject)}
+                          </span>
+                          <span
+                            className={orderStatusBadgeClass(
+                              ticket.status === 'closed'
+                                ? 'failed'
+                                : ticket.status === 'answered'
+                                  ? 'completed'
+                                  : 'pending',
+                            )}
+                          >
+                            {ticketStatusLabel(ticket.status)}
+                          </span>
+                        </div>
+                        <div className="admin__row-meta">
+                          {displayUsername(ticket.user)}
+                          {ticket.orderId ? ` · ${ticket.orderId}` : ''}
+                          {' · '}
+                          {formatFaDateLong(ticket.updatedAt)}
+                        </div>
+                        {ticket.lastMessage && (
+                          <div className="admin__row-meta">
+                            {ticket.lastMessage.body.slice(0, 80)}
+                          </div>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         )}
 
         <div className="admin__pager">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import SearchIcon from '../components/icons/SearchIcon'
@@ -289,17 +290,15 @@ export function WalletTransferRecipientPage() {
               </div>
             ) : displayedRecipients.length === 0 ? (
               emptyMessage ? (
-                <div
-                  className={`transfer-recipient__empty shop-rise${
-                    searchError ? ' transfer-recipient__empty--error' : ''
-                  }`}
+                <EmptyState
+                  compact
+                  className={`shop-rise${searchError ? ' transfer-recipient__empty--error' : ''}`}
                   style={{ '--rise-index': 4 } as CSSProperties}
-                >
-                  {emptyMessage}
-                </div>
+                  title={emptyMessage}
+                />
               ) : null
             ) : (
-              displayedRecipients.map((recipient, index) => {
+              displayedRecipients.map((recipient) => {
                 const isSelected = selectedRecipient?.telegramId === recipient.telegramId
                 const handle = formatTransferRecipientHandle(recipient)
 
@@ -307,10 +306,9 @@ export function WalletTransferRecipientPage() {
                   <button
                     key={recipient.telegramId}
                     type="button"
-                    className={`transfer-recipient__item shop-rise${
+                    className={`transfer-recipient__item${
                       isSelected ? ' transfer-recipient__item--selected' : ''
                     }`}
-                    style={{ '--rise-index': 4 + index } as CSSProperties}
                     onClick={() => handleSelectRecipient(recipient)}
                   >
                     <span className="transfer-recipient__avatar">

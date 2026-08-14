@@ -1,13 +1,16 @@
 import { useEffect, useLayoutEffect, useMemo, useState, type ComponentType, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
 import AdminIcon from '../components/icons/AdminIcon'
 import BankCardIcon from '../components/icons/BankCardIcon'
+import ContactIcon from '../components/icons/ContactIcon'
 import DepositCryptoIcon from '../components/icons/DepositCryptoIcon'
 import FavouriteIcon from '../components/icons/FavouriteIcon'
 import IdIcon from '../components/icons/IdIcon'
 import MoneySendFlow02Icon from '../components/icons/money-send-flow-02-stroke-rounded'
 import PaymentHistoryIcon from '../components/icons/PaymentHistoryIcon'
 import RegularUserIcon from '../components/icons/RegularUserIcon'
+import TelegramIcon from '../components/icons/TelegramIcon'
 import ViewIcon from '../components/icons/ViewIcon'
 import { useAdminAccess } from '../hooks/useAdminAccess'
 import { useTelegram } from '../hooks/useTelegram'
@@ -221,6 +224,14 @@ export function AdminPage() {
       Icon: FavouriteIcon,
     },
     {
+      id: 'shop-banners',
+      label: 'بنر',
+      hint: 'فروشگاه',
+      path: '/admin/shop-banners',
+      tone: 'amber',
+      Icon: ViewIcon,
+    },
+    {
       id: 'pricing',
       label: 'قیمت',
       hint: 'محصولات',
@@ -234,7 +245,15 @@ export function AdminPage() {
       hint: 'پشتیبانی',
       path: '/admin/tickets',
       tone: 'sky',
-      Icon: AdminIcon,
+      Icon: ContactIcon,
+    },
+    {
+      id: 'system-channels',
+      label: 'کانال‌ها',
+      hint: 'سیستم',
+      path: '/admin/system-channels',
+      tone: 'teal',
+      Icon: TelegramIcon,
     },
     {
       id: 'tools',
@@ -254,6 +273,44 @@ export function AdminPage() {
       meta: overview ? formatFaNumber(overview.users.banned) : undefined,
     },
   ]
+
+  const openTickets = overview?.tickets?.openCount ?? 0
+  const primaryActions: HubAction[] = PRIMARY_ACTIONS.map((action) => {
+    if (action.id === 'users') {
+      return {
+        ...action,
+        hint: overview
+          ? overview.users.newToday > 0
+            ? `${formatFaNumber(overview.users.newToday)} کاربر جدید`
+            : 'کاربر جدیدی نیست'
+          : action.hint,
+      }
+    }
+    if (action.id === 'orders') {
+      return {
+        ...action,
+        hint: overview
+          ? overview.today.ordersCount > 0
+            ? `${formatFaNumber(overview.today.ordersCount)} سفارش جدید`
+            : 'سفارش جدیدی نیست'
+          : action.hint,
+      }
+    }
+    return action
+  })
+
+  const ticketsAction: HubAction = {
+    id: 'tickets',
+    label: 'تیکت پشتیبانی',
+    hint: overview
+      ? openTickets > 0
+        ? `${formatFaNumber(openTickets)} تیکت باز داریم`
+        : 'تیکت بازی نیست'
+      : 'وضعیت پشتیبانی',
+    path: '/admin/tickets',
+    tone: openTickets > 0 ? 'rose' : 'sky',
+    Icon: ContactIcon,
+  }
 
   const chartPoints =
     chartRange === 'weekly' ? overview?.charts.weekly ?? [] : overview?.charts.monthly ?? []
@@ -307,7 +364,7 @@ export function AdminPage() {
       </button>
 
       <div className="admin-hub__primary shop-rise" style={{ '--rise-index': 2 } as CSSProperties}>
-        {PRIMARY_ACTIONS.map((action) => {
+        {primaryActions.map((action) => {
           const Icon = action.Icon
           return (
             <button
@@ -326,6 +383,24 @@ export function AdminPage() {
             </button>
           )
         })}
+        {(() => {
+          const TicketsIcon = ticketsAction.Icon
+          return (
+            <button
+              type="button"
+              className={`admin-hub__primary-tile admin-hub__primary-tile--wide admin-hub__tone--${ticketsAction.tone}`}
+              onClick={() => open(ticketsAction.path)}
+            >
+              <span className="admin-hub__primary-icon">
+                <TicketsIcon width={20} height={20} color="currentColor" />
+              </span>
+              <span className="admin-hub__primary-text">
+                <span className="admin-hub__primary-label">{ticketsAction.label}</span>
+                <span className="admin-hub__primary-hint">{ticketsAction.hint}</span>
+              </span>
+            </button>
+          )
+        })()}
       </div>
 
       {error && <p className="admin__error">{error}</p>}
@@ -387,10 +462,12 @@ export function AdminPage() {
               </button>
             </div>
           </div>
-          {loading || chartPoints.length === 0 ? (
+          {loading ? (
             <p className="admin__muted" style={{ margin: 0 }}>
-              {loading ? 'در حال بارگذاری…' : 'هنوز فروشی ثبت نشده'}
+              در حال بارگذاری…
             </p>
+          ) : chartPoints.length === 0 ? (
+            <EmptyState compact title="هنوز فروشی ثبت نشده" style={{ margin: 0 }} />
           ) : (
             <AdminSalesChart
               points={chartPoints}

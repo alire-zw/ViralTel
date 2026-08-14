@@ -2,14 +2,30 @@ import {
   convertUsdtToToman,
   getUsdtIrtPrice,
 } from '../crypto-payments/swapwallet.client.js'
-import { applyProductPricing } from '../pricing/product-pricing.apply.js'
+import {
+  applyProductPricing,
+  getProductPricingRule,
+} from '../pricing/product-pricing.apply.js'
 import {
   ACCOUNT_SHOP_CATALOG,
   ACCOUNT_SHOP_CATEGORIES,
   ACCOUNT_SHOP_PRODUCT_IDS,
+  accountShopProductKey,
   type AccountShopCategoryId,
 } from './account-shop.catalog.js'
 import { CanbosoApiError, fetchCanbosoProducts, type CanbosoProduct } from './canboso.client.js'
+
+async function applyAccountShopPricing(
+  categoryId: AccountShopCategoryId,
+  baseToman: number,
+): Promise<number> {
+  const productKey = accountShopProductKey(categoryId)
+  const specificRule = await getProductPricingRule(productKey)
+  if (specificRule) {
+    return applyProductPricing(productKey, baseToman)
+  }
+  return applyProductPricing('chatgpt', baseToman)
+}
 
 function resolveUsdPrice(product: CanbosoProduct): number {
   const candidates = [product.usdPricing, product.walletPricing, product.pricing]
@@ -75,7 +91,7 @@ export async function getAccountShopCatalog(): Promise<AccountShopCatalogRespons
 
     const available = resolveAvailable(remote)
     const baseToman = convertUsdtToToman(priceUsd, usdtIrtPrice)
-    const toman = await applyProductPricing('chatgpt', baseToman)
+    const toman = await applyAccountShopPricing(catalogItem.categoryId, baseToman)
 
     products.push({
       productId: catalogItem.productId,

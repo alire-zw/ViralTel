@@ -247,6 +247,7 @@ model VirtualNumber {
   quality         String    @db.VarChar(255)
   code            String?   @db.VarChar(32)
   codeReceivedAt  DateTime? @map("code_received_at")
+  loggedOutAt     DateTime? @map("logged_out_at")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   order           Order     @relation(fields: [orderDbId], references: [id], onDelete: Cascade)
@@ -546,4 +547,42 @@ model SupportTicketMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_ticket_messages")
+}
+
+enum AdminSystemChannelSlot {
+  admin_report
+  purchase_report
+  notification
+}
+
+/** System Telegram channels for admin reports / notifications (one per slot). */
+model AdminSystemChannel {
+  id        Int                    @id @default(autoincrement())
+  slotKey   AdminSystemChannelSlot @unique @map("slot_key")
+  chatId    BigInt                 @map("chat_id")
+  username  String                 @db.VarChar(64)
+  title     String                 @db.VarChar(255)
+  isActive  Boolean                @default(true) @map("is_active")
+  createdAt DateTime               @default(now()) @map("created_at")
+  updatedAt DateTime               @updatedAt @map("updated_at")
+
+  @@index([chatId])
+  @@index([isActive])
+  @@map("admin_system_channels")
+}
+
+/** Rotating shop homepage banners (main + thumbnail images). */
+model ShopBanner {
+  id            Int      @id @default(autoincrement())
+  title         String   @db.VarChar(128)
+  productKey    String   @map("product_key") @db.VarChar(96)
+  mainImageUrl  String   @map("main_image_url") @db.VarChar(512)
+  thumbImageUrl String   @map("thumb_image_url") @db.VarChar(512)
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("shop_banners")
 }

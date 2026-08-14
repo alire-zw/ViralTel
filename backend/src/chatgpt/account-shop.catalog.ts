@@ -35,6 +35,29 @@ export const ACCOUNT_SHOP_CATEGORIES: Array<{
   { id: 'grok', labelFa: 'گروک', sortOrder: 10 },
 ]
 
+/** Product key prefix so each brand is tracked/priced as its own shop product. */
+export const ACCOUNT_SHOP_PRODUCT_KEY_PREFIX = 'account-' as const
+
+export function accountShopProductKey(categoryId: AccountShopCategoryId): string {
+  return `${ACCOUNT_SHOP_PRODUCT_KEY_PREFIX}${categoryId}`
+}
+
+export function parseAccountShopProductKey(productKey: string): AccountShopCategoryId | null {
+  const normalized = productKey.trim().toLowerCase()
+  if (!normalized.startsWith(ACCOUNT_SHOP_PRODUCT_KEY_PREFIX)) return null
+  const categoryId = normalized.slice(ACCOUNT_SHOP_PRODUCT_KEY_PREFIX.length)
+  const match = ACCOUNT_SHOP_CATEGORIES.find((item) => item.id === categoryId)
+  return match?.id ?? null
+}
+
+export const ACCOUNT_SHOP_PRODUCT_KEYS: readonly string[] = ACCOUNT_SHOP_CATEGORIES.map((item) =>
+  accountShopProductKey(item.id),
+)
+
+export function isAccountShopCategoryId(value: string): value is AccountShopCategoryId {
+  return ACCOUNT_SHOP_CATEGORIES.some((item) => item.id === value)
+}
+
 /** Curated Canboso products shown in the account shop */
 export const ACCOUNT_SHOP_CATALOG: AccountShopCatalogItem[] = [
   // ChatGPT

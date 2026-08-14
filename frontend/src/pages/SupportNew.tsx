@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import FolderAttachmentIcon from '../components/icons/folder-attachment-stroke-rounded'
 import IdIcon from '../components/icons/IdIcon'
 import Money03Icon from '../components/icons/money-03-stroke-rounded'
@@ -7,6 +7,7 @@ import NoteIcon from '../components/icons/NoteIcon'
 import OrderIcon from '../components/icons/OrderIcon'
 import ShopIcon from '../components/icons/ShopIcon'
 import Ticket02Icon from '../components/icons/ticket-02-stroke-rounded'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { useTelegram } from '../hooks/useTelegram'
@@ -66,11 +67,22 @@ function formatFaOrderDate(value: string): string {
 
 export function SupportNewPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { haptic } = useTelegram()
   const fileRef = useRef<HTMLInputElement | null>(null)
-  const [step, setStep] = useState<Step>('category')
-  const [category, setCategory] = useState<SupportCategory | null>(null)
-  const [orderId, setOrderId] = useState<string | null>(null)
+  const presetOrderId = searchParams.get('orderId')?.trim() || null
+  const presetCategoryRaw = searchParams.get('category')?.trim() || null
+  const presetCategory: SupportCategory | null =
+    presetCategoryRaw && SUPPORT_CATEGORIES.some((item) => item.value === presetCategoryRaw)
+      ? (presetCategoryRaw as SupportCategory)
+      : presetOrderId
+        ? 'product'
+        : null
+  const orderLocked = Boolean(presetOrderId)
+
+  const [step, setStep] = useState<Step>(() => (presetOrderId ? 'message' : 'category'))
+  const [category, setCategory] = useState<SupportCategory | null>(() => presetCategory)
+  const [orderId, setOrderId] = useState<string | null>(() => presetOrderId)
   const [orders, setOrders] = useState<SupportOrderItem[]>([])
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [body, setBody] = useState('')
@@ -105,11 +117,15 @@ export function SupportNewPage() {
   }, [])
 
   useEffect(() => {
-    if (step === 'order') void loadOrders()
-  }, [loadOrders, step])
+    if (step === 'order' || (orderLocked && orderId)) void loadOrders()
+  }, [loadOrders, orderId, orderLocked, step])
 
   const goBack = () => {
     haptic('light')
+    if (orderLocked && step === 'message') {
+      navigate(`/orders/${encodeURIComponent(presetOrderId!)}`, { replace: true })
+      return
+    }
     if (step === 'message') {
       setStep(selectedMeta?.suggestOrder ? 'order' : 'category')
       return
@@ -196,31 +212,38 @@ export function SupportNewPage() {
     }
   }
 
-  const title =
-    step === 'category' ? 'موضوع تیکت' : step === 'order' ? 'سفارش مرتبط' : 'شرح درخواست'
+  const title = orderLocked
+    ? 'تیکت سفارش'
+    : step === 'category'
+      ? 'موضوع تیکت'
+      : step === 'order'
+        ? 'سفارش مرتبط'
+        : 'شرح درخواست'
   const canSubmit = Boolean(category && (body.trim() || imagePreview))
 
   return (
     <div className="support support--sub shop-rise">
       <PageHeader title={title} onBack={goBack} />
 
-      <div className="support__steps" aria-hidden="true">
-        {(selectedMeta?.suggestOrder === false
-          ? (['category', 'message'] as Step[])
-          : (['category', 'order', 'message'] as Step[])
-        ).map((item, index, list) => {
-          const stepIndex = list.indexOf(step)
-          const itemIndex = index
-          const active = itemIndex <= Math.max(0, stepIndex)
-          const current = item === step
-          return (
-            <span
-              key={item}
-              className={`support__step-dot${active ? ' is-active' : ''}${current ? ' is-current' : ''}`}
-            />
-          )
-        })}
-      </div>
+      {!orderLocked ? (
+        <div className="support__steps" aria-hidden="true">
+          {(selectedMeta?.suggestOrder === false
+            ? (['category', 'message'] as Step[])
+            : (['category', 'order', 'message'] as Step[])
+          ).map((item, index, list) => {
+            const stepIndex = list.indexOf(step)
+            const itemIndex = index
+            const active = itemIndex <= Math.max(0, stepIndex)
+            const current = item === step
+            return (
+              <span
+                key={item}
+                className={`support__step-dot${active ? ' is-active' : ''}${current ? ' is-current' : ''}`}
+              />
+            )
+          })}
+        </div>
+      ) : null}
 
       {step === 'category' && (
         <section className="support__new-block shop-rise" style={{ '--rise-index': 0 } as CSSProperties}>
@@ -270,7 +293,7 @@ export function SupportNewPage() {
               ))}
             </div>
           ) : orders.length === 0 ? (
-            <p className="support__muted">سفارشی برای نمایش نیست</p>
+            <EmptyState compact title="سفارشی برای نمایش نیست" />
           ) : (
             <div className="support__order-list">
               {orders.map((order) => (

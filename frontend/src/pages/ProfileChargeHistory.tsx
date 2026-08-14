@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { TransactionDetailSheet } from '../components/TransactionDetailSheet'
@@ -9,8 +10,6 @@ import MoneyPending02Icon from '../components/icons/money-pending-02-stroke-roun
 import MoneyReceive02Icon from '../components/icons/money-receive-02-stroke-rounded'
 import MoneyRemove02Icon from '../components/icons/money-remove-02-stroke-rounded'
 import MoneySendFlow02Icon from '../components/icons/money-send-flow-02-stroke-rounded'
-import PaymentFailedIcon from '../components/icons/PaymentFailedIcon'
-import PaymentHistoryIcon from '../components/icons/PaymentHistoryIcon'
 import HandCoinsIcon from '../components/icons/hand-coins-stroke-rounded'
 import { useUser } from '../context/UserContext'
 import { useTelegram } from '../hooks/useTelegram'
@@ -111,11 +110,9 @@ function getTransactionIconClass(transaction: WalletTransaction): string {
 
 function TransactionRow({
   transaction,
-  riseIndex,
   onClick,
 }: {
   transaction: WalletTransaction
-  riseIndex: number
   onClick?: (transaction: WalletTransaction) => void
 }) {
   const isClickable = Boolean(onClick)
@@ -124,10 +121,9 @@ function TransactionRow({
 
   return (
     <div
-      className={`wallet__transaction shop-rise${
+      className={`wallet__transaction${
         isClickable ? ' wallet__transaction--clickable' : ''
       }`}
-      style={{ '--rise-index': riseIndex } as CSSProperties}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? () => onClick?.(transaction) : undefined}
@@ -163,8 +159,17 @@ function TransactionRow({
 
 export function ProfileChargeHistoryPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { haptic } = useTelegram()
   const { user } = useUser()
+
+  const returnTo =
+    location.state &&
+    typeof location.state === 'object' &&
+    'returnTo' in location.state &&
+    typeof (location.state as { returnTo: unknown }).returnTo === 'string'
+      ? (location.state as { returnTo: string }).returnTo
+      : '/profile'
 
   const [clubPoints, setClubPoints] = useState(() => user?.clubPoints ?? 0)
   const [isClubPointsLoading, setIsClubPointsLoading] = useState(() => user?.clubPoints == null)
@@ -190,8 +195,8 @@ export function ProfileChargeHistoryPage() {
   })
 
   const handleBack = useCallback(() => {
-    navigate('/profile', { replace: true })
-  }, [navigate])
+    navigate(returnTo, { replace: true })
+  }, [navigate, returnTo])
 
   const applyTransactionsPayload = useCallback((payload: WalletTransactionsPayload) => {
     setTransactions(payload.items.filter(isChargeHistoryTransaction))
@@ -504,22 +509,16 @@ export function ProfileChargeHistoryPage() {
       <div className="wallet__transactions-scroll">
         <div className="wallet__transactions">
           {transactionsError ? (
-            <div
-              className="wallet__empty shop-rise"
+            <EmptyState
+              className="shop-rise"
               style={{ '--rise-index': 3 } as CSSProperties}
-            >
-              <span className="wallet__empty-icon">
-                <PaymentFailedIcon width={22} height={22} />
-              </span>
-              <p className="wallet__empty-text">{transactionsError}</p>
-              <button
-                type="button"
-                className="wallet__balance-retry"
-                onClick={handleRetryTransactions}
-              >
-                تلاش مجدد
-              </button>
-            </div>
+              title={transactionsError}
+              action={
+                <button type="button" className="wallet__balance-retry" onClick={handleRetryTransactions}>
+                  تلاش مجدد
+                </button>
+              }
+            />
           ) : showSkeleton ? (
             [0, 1, 2, 3].map((index) => (
               <div
@@ -538,21 +537,16 @@ export function ProfileChargeHistoryPage() {
               </div>
             ))
           ) : hasFetchedTransactions && transactions.length === 0 ? (
-            <div
-              className="wallet__empty shop-rise"
+            <EmptyState
+              className="shop-rise"
               style={{ '--rise-index': 3 } as CSSProperties}
-            >
-              <span className="wallet__empty-icon">
-                <PaymentHistoryIcon width={22} height={22} />
-              </span>
-              <p className="wallet__empty-text">هنوز شارژ یا خریدی ثبت نشده است</p>
-            </div>
+              title="هنوز شارژ یا خریدی ثبت نشده است"
+            />
           ) : (
-            transactions.map((transaction, index) => (
+            transactions.map((transaction) => (
               <TransactionRow
                 key={transaction.id}
                 transaction={transaction}
-                riseIndex={3 + index}
                 onClick={handleTransactionClick}
               />
             ))

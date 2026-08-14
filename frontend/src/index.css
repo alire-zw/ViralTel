@@ -82,6 +82,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  /* IRANYekanX: render Latin digits 0-9 with Persian glyphs (no Unicode conversion). */
+  -moz-font-feature-settings: 'ss02';
+  -webkit-font-feature-settings: 'ss02';
+  font-feature-settings: 'ss02';
 }
 
 button,
@@ -93,6 +97,7 @@ textarea,
 label,
 summary {
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: inherit;
 }
 
 button:focus:not(:focus-visible),

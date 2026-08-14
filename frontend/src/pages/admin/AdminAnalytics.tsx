@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { shopCategories } from '../../data/shopCategories'
+import { accountShopProductLabel } from '../../data/accountShopProducts'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
 import { fetchAdminOverview, type AdminOverview } from '../../lib/adminApi'
@@ -10,7 +12,11 @@ import { AdminSalesChart } from './AdminSalesChart'
 import { AdminScreen } from './AdminScreen'
 
 function productLabel(productKey: string): string {
-  return shopCategories.find((item) => item.id === productKey)?.label ?? productKey
+  return (
+    shopCategories.find((item) => item.id === productKey)?.label ??
+    accountShopProductLabel(productKey) ??
+    productKey
+  )
 }
 
 export function AdminAnalyticsPage() {
@@ -138,9 +144,7 @@ export function AdminAnalyticsPage() {
             در حال بارگذاری…
           </p>
         ) : chartPoints.length === 0 ? (
-          <p className="admin__muted" style={{ margin: 0 }}>
-            هنوز فروشی ثبت نشده
-          </p>
+          <EmptyState compact title="هنوز فروشی ثبت نشده" style={{ margin: 0 }} />
         ) : (
           <AdminSalesChart points={chartPoints} onSelect={() => haptic('light')} />
         )}
@@ -150,7 +154,7 @@ export function AdminAnalyticsPage() {
       {!overview ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : topViews.length === 0 ? (
-        <p className="admin__muted">بازدییدی ثبت نشده</p>
+        <EmptyState title="بازدییدی ثبت نشده" />
       ) : (
         <div className="admin-view-list">
           {topViews.map((row, index) => {

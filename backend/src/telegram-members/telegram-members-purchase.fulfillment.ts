@@ -5,6 +5,7 @@ import { updateOrderStatus } from '../orders/order.service.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
 import { addPowerTelOrder, PowerTelApiError } from '../reaction/powertel.client.js'
 import { isTelegramMemberServiceId } from './telegram-members.pricing.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class TelegramMembersPurchaseError extends Error {
   constructor(
@@ -52,6 +53,7 @@ export async function fulfillTelegramMembersOrder(orderId: string): Promise<bool
 
   if (memberOrder.providerOrderId) {
     await updateOrderStatus(order.id, 'completed', { fulfilledAt: new Date() })
+    void notifyOrderCompleted(order.orderId)
     return true
   }
 
@@ -89,6 +91,7 @@ export async function fulfillTelegramMembersOrder(orderId: string): Promise<bool
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {

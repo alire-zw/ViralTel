@@ -5,7 +5,7 @@ import { useTelegram } from '../hooks/useTelegram'
 import { useProductPageView } from '../hooks/useProductPageView'
 import { isTelegramWebApp } from '../lib/api'
 import { formatTomanPrice } from '../lib/formatStars'
-import { getCountryFlagUrl } from '../lib/countryFlags'
+import { CountryFlagImg } from '../components/CountryFlagImg'
 import { warmCountryFlagCache } from '../lib/countryFlagCache'
 import { getVirtualNumberCountries } from '../lib/virtualNumber'
 import { shopHeroPages } from '../data/shopHeroPages'
@@ -223,6 +223,16 @@ export function VirtualNumberPage() {
     [activeGroup, selectedCountryId],
   )
 
+  useEffect(() => {
+    if (!selectedCountryId || groupedCountries.length === 0) return
+    const matched = groupedCountries
+      .flatMap((group) => group.items)
+      .find((item) => item.countryId === selectedCountryId)
+    if (matched && matched.available === false) {
+      setSelectedCountryId(null)
+    }
+  }, [groupedCountries, selectedCountryId])
+
   const handleSelectQuality = (quality: VirtualNumberQuality) => {
     haptic('light')
     setSelectedQuality(quality)
@@ -230,12 +240,13 @@ export function VirtualNumberPage() {
   }
 
   const handleSelectCountry = (country: VirtualNumberCountry) => {
+    if (!country.available) return
     haptic('light')
     setSelectedCountryId(country.countryId)
   }
 
   const handleContinue = () => {
-    if (!selectedCountry) return
+    if (!selectedCountry || !selectedCountry.available) return
 
     haptic('light')
     navigate('/virtual-number/confirm', {
@@ -370,6 +381,7 @@ export function VirtualNumberPage() {
                 >
                   {activeGroup.items.map((country) => {
                     const isSelected = selectedCountryId === country.countryId
+                    const unavailable = country.available === false
 
                     return (
                       <button
@@ -377,22 +389,28 @@ export function VirtualNumberPage() {
                         type="button"
                         role="radio"
                         aria-checked={isSelected}
+                        aria-disabled={unavailable}
+                        disabled={unavailable}
                         className={`virtual-number__country${
                           isSelected ? ' virtual-number__country--selected' : ''
-                        }`}
+                        }${unavailable ? ' virtual-number__country--unavailable' : ''}`}
                         onClick={() => handleSelectCountry(country)}
                       >
                         <span className="virtual-number__country-start">
-                          <img
-                            src={getCountryFlagUrl(country.flagCode)}
-                            alt=""
+                          <CountryFlagImg
+                            flagCode={country.flagCode}
                             className="virtual-number__country-flag"
                             width={24}
                             height={18}
-                            loading="lazy"
-                            decoding="async"
                           />
-                          <span className="virtual-number__country-label">{country.country}</span>
+                          <span className="virtual-number__country-label">
+                            {country.country}
+                            {unavailable ? (
+                              <span className="virtual-number__country-unavailable-tag">
+                                در حال حاضر ناموجود
+                              </span>
+                            ) : null}
+                          </span>
                         </span>
                         <span className="virtual-number__country-price">
                           <span className="virtual-number__country-price-value">
@@ -418,7 +436,7 @@ export function VirtualNumberPage() {
         <button
           type="button"
           className="virtual-number__continue"
-          disabled={!selectedCountry}
+          disabled={!selectedCountry || selectedCountry.available === false}
           onClick={handleContinue}
         >
           ادامه

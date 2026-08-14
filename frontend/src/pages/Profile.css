@@ -70,11 +70,6 @@
   color: var(--accent);
 }
 
-.profile__copied {
-  font-size: 11px;
-  color: var(--accent);
-}
-
 .profile__spacer {
   flex: 1;
 }

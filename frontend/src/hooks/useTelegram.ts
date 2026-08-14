@@ -69,7 +69,7 @@ export function useTelegram(): TelegramState {
   }, [])
 
   const haptic = useCallback((style: 'light' | 'medium' | 'heavy' = 'light') => {
-    window.Telegram?.WebApp.HapticFeedback.impactOccurred(style)
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(style)
   }, [])
 
   return { isReady, colorScheme, user, haptic }

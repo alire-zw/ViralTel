@@ -1,5 +1,8 @@
-import { apiFetch } from './api'
+import { apiFetch, getTelegramInitData } from './api'
+import { getBrowserSessionToken, isBrowserPublicMode } from './browserSession'
 import type { AppUser, UserRole } from '../types/user'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
 export type AdminUserSummary = {
   id: number
@@ -34,6 +37,9 @@ export type AdminOverview = {
     kycPending: number
     newToday: number
     newWeek: number
+  }
+  tickets?: {
+    openCount: number
   }
   totals: {
     orders: number
@@ -508,6 +514,7 @@ export function fetchAdminTickets(params: {
   page?: number
   limit?: number
   status?: string
+  category?: string
   search?: string
 }) {
   return apiFetch<{
@@ -541,4 +548,168 @@ export function replyAdminTicket(
     method: 'POST',
     body: JSON.stringify(body),
   })
+}
+
+export type AdminSystemChannelSlot =
+  | 'admin_report'
+  | 'purchase_report'
+  | 'notification'
+
+export type AdminSystemChannel = {
+  slotKey: AdminSystemChannelSlot
+  label: string
+  hint: string
+  chatId: string
+  username: string
+  title: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type AdminSystemChannelSlotItem = {
+  slotKey: AdminSystemChannelSlot
+  label: string
+  hint: string
+  channel: AdminSystemChannel | null
+}
+
+export function fetchAdminSystemChannelsBot() {
+  return apiFetch<{ username: string; deepLink: string }>('/api/admin/system-channels/bot')
+}
+
+export function fetchAdminSystemChannels() {
+  return apiFetch<{ items: AdminSystemChannelSlotItem[] }>('/api/admin/system-channels')
+}
+
+export function registerAdminSystemChannel(slotKey: AdminSystemChannelSlot, link: string) {
+  return apiFetch<{ channel: AdminSystemChannel }>(
+    `/api/admin/system-channels/${encodeURIComponent(slotKey)}/register`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ link }),
+    },
+  )
+}
+
+export function deactivateAdminSystemChannel(slotKey: AdminSystemChannelSlot) {
+  return setAdminSystemChannelActive(slotKey, false)
+}
+
+export function setAdminSystemChannelActive(slotKey: AdminSystemChannelSlot, isActive: boolean) {
+  return apiFetch<{ channel: AdminSystemChannel }>(
+    `/api/admin/system-channels/${encodeURIComponent(slotKey)}/active`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ isActive }),
+    },
+  )
+}
+
+export function deleteAdminSystemChannel(slotKey: AdminSystemChannelSlot) {
+  return apiFetch<{ ok: boolean }>(
+    `/api/admin/system-channels/${encodeURIComponent(slotKey)}`,
+    { method: 'DELETE' },
+  )
+}
+
+export type AdminShopBanner = {
+  id: number
+  title: string
+  productKey: string
+  mainImageUrl: string
+  thumbImageUrl: string
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export function fetchAdminShopBanners() {
+  return apiFetch<{ items: AdminShopBanner[] }>('/api/admin/shop-banners')
+}
+
+export function createAdminShopBanner(
+  body: {
+    title: string
+    productKey: string
+    mainImage: string
+    thumbImage: string
+    sortOrder?: number
+    isActive?: boolean
+  },
+  options?: {
+    onUploadProgress?: (percent: number) => void
+  },
+) {
+  if (!options?.onUploadProgress) {
+    return apiFetch<{ banner: AdminShopBanner }>('/api/admin/shop-banners', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    })
+  }
+
+  return new Promise<{ banner: AdminShopBanner }>((resolve, reject) => {
+    const initData = getTelegramInitData()
+    const browserToken = !initData && isBrowserPublicMode() ? getBrowserSessionToken() : null
+    const xhr = new XMLHttpRequest()
+    const payload = JSON.stringify(body)
+
+    xhr.open('POST', `${API_BASE}/api/admin/shop-banners`)
+    xhr.setRequestHeader('Content-Type', 'application/json')
+    if (initData) {
+      xhr.setRequestHeader('X-Telegram-Init-Data', initData)
+    } else if (browserToken) {
+      xhr.setRequestHeader('Authorization', `Bearer ${browserToken}`)
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return
+      const percent = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)))
+      options.onUploadProgress?.(percent)
+    }
+
+    xhr.onload = () => {
+      let payloadJson: {
+        banner?: AdminShopBanner
+        message?: string
+        error?: string
+      } = {}
+      try {
+        payloadJson = JSON.parse(xhr.responseText) as typeof payloadJson
+      } catch {
+        // ignore
+      }
+
+      if (xhr.status >= 200 && xhr.status < 300 && payloadJson.banner) {
+        resolve({ banner: payloadJson.banner })
+        return
+      }
+
+      reject(new Error(payloadJson.message ?? payloadJson.error ?? `Request failed (${xhr.status})`))
+    }
+
+    xhr.onerror = () => reject(new Error('خطا در ارتباط با سرور'))
+    xhr.onabort = () => reject(new Error('آپلود لغو شد'))
+    xhr.send(payload)
+  })
+}
+
+export function updateAdminShopBanner(
+  id: number,
+  body: Partial<{
+    title: string
+    productKey: string
+    sortOrder: number
+    isActive: boolean
+  }>,
+) {
+  return apiFetch<{ banner: AdminShopBanner }>(`/api/admin/shop-banners/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteAdminShopBanner(id: number) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/shop-banners/${id}`, { method: 'DELETE' })
 }

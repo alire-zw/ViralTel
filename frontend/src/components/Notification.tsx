@@ -1,45 +1,92 @@
-import { useEffect } from 'react'
-import './Notification.css'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { isTelegramWebApp } from '../lib/api'
+import styles from './Notification.module.css'
+
+export type NotificationType = 'success' | 'error' | 'warning' | 'info'
 
 interface NotificationProps {
   show: boolean
   message: string
-  type?: 'success' | 'error' | 'warning' | 'info'
+  type?: NotificationType
   onClose?: () => void
+  duration?: number
 }
+
+const TYPE_TITLES: Record<NotificationType, string> = {
+  success: 'موفقیت',
+  error: 'خطا',
+  warning: 'هشدار',
+  info: 'اطلاع',
+}
+
+const AUTO_DISMISS_MS = 3000
+const EXIT_MS = 400
 
 export function Notification({
   show,
   message,
   type = 'success',
   onClose,
+  duration = AUTO_DISMISS_MS,
 }: NotificationProps) {
-  useEffect(() => {
-    if (!show || !onClose) return
+  const [hiding, setHiding] = useState(false)
+  const hidingRef = useRef(false)
+  const onCloseRef = useRef(onClose)
+  const inTelegram = isTelegramWebApp()
 
-    const timer = window.setTimeout(onClose, 3000)
+  onCloseRef.current = onClose
+
+  const handleClose = useCallback(() => {
+    if (hidingRef.current) return
+    hidingRef.current = true
+    setHiding(true)
+    window.setTimeout(() => {
+      hidingRef.current = false
+      setHiding(false)
+      onCloseRef.current?.()
+    }, EXIT_MS)
+  }, [])
+
+  useEffect(() => {
+    if (!show) {
+      hidingRef.current = false
+      setHiding(false)
+      return undefined
+    }
+
+    if (!onCloseRef.current || duration <= 0) return undefined
+
+    const timer = window.setTimeout(handleClose, duration)
     return () => window.clearTimeout(timer)
-  }, [show, onClose])
+  }, [show, message, type, duration, handleClose])
 
   if (!show) return null
 
-  return (
-    <div className={`notification notification--${type}`} role="status">
-      <div className="notification__content">
-        <span className="notification__message">{message}</span>
-        {onClose && (
-          <button
-            type="button"
-            className="notification__close"
-            onClick={onClose}
-            aria-label="بستن"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" />
-            </svg>
-          </button>
-        )}
+  return createPortal(
+    <div
+      className={[
+        styles.wrapper,
+        hiding ? styles.hide : styles.show,
+        inTelegram ? styles.telegram : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <div
+        className={[styles.notification, styles[type]].join(' ')}
+        role="status"
+        aria-live="polite"
+        onClick={onClose ? handleClose : undefined}
+      >
+        <div className={styles.glass} aria-hidden="true" />
+        <div className={styles.accent} aria-hidden="true" />
+        <div className={styles.notificationContent}>
+          <div className={styles.notificationTitle}>{TYPE_TITLES[type]}</div>
+          <div className={styles.notificationMessage}>{message}</div>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

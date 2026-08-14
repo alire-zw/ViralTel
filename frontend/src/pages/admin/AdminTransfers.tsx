@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { fetchAdminTransfers, type AdminTransferItem } from '../../lib/adminApi'
 import { balanceToToman } from '../../lib/api'
@@ -87,7 +88,7 @@ export function AdminTransfersPage() {
       {loading ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : items.length === 0 ? (
-        <p className="admin__muted">انتقالی پیدا نشد</p>
+        <EmptyState title="انتقالی پیدا نشد" />
       ) : (
         <ul className="admin__list">
           {items.map((transfer) => (

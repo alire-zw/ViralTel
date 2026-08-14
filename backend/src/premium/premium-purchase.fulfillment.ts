@@ -4,6 +4,7 @@ import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.
 import { updateOrderStatus } from '../orders/order.service.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
 import { buyPremium } from '../stars/marketapp.client.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class PremiumPurchaseError extends Error {
   constructor(
@@ -65,6 +66,7 @@ export async function fulfillPremiumOrder(orderId: string): Promise<boolean> {
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {

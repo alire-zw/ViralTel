@@ -40,8 +40,12 @@ import {
   ACCOUNT_SHOP_CATALOG,
   ACCOUNT_SHOP_CATEGORIES,
   ACCOUNT_SHOP_PRODUCT_IDS,
+  accountShopProductKey,
+  parseAccountShopProductKey,
+  type AccountShopCategoryId,
 } from '../chatgpt/account-shop.catalog.js'
 import { fetchCanbosoProducts } from '../chatgpt/canboso.client.js'
+import { SHOP_PRODUCT_KEYS } from '../analytics/analytics.schema.js'
 
 export type AdminPricingCatalogItem = {
   id: string
@@ -182,7 +186,9 @@ async function catalogVirtualNumber(rule: ProductPricingRule | null): Promise<Ad
         {
           id: `vn-${item.countryId}`,
           label: item.country,
-          subtitle: `کیفیت ${group.label}`,
+          subtitle: item.available
+            ? `کیفیت ${group.label}`
+            : `کیفیت ${group.label} · ناموجود`,
           group: group.label,
           baseToman: Number(item.price) || 0,
         },
@@ -194,9 +200,9 @@ async function catalogVirtualNumber(rule: ProductPricingRule | null): Promise<Ad
   return {
     productKey: 'virtual-number',
     label: categoryLabel('virtual-number'),
-    source: 'Callinoo',
+    source: 'Callinoo (کش ۱۰ دقیقه‌ای)',
     note: items.length ? null : 'لیست کشورها از Callinoo خالی است',
-    sampleHint: 'قیمت پایه هر کشور از وب‌سرویس Callinoo',
+    sampleHint: 'قیمت پایه هر کشور همین الان از وب‌سرویس Callinoo گرفته شده؛ قیمت نهایی با تنظیم ادمین محاسبه می‌شود',
     items,
   }
 }
@@ -303,7 +309,10 @@ async function catalogMembers(rule: ProductPricingRule | null): Promise<AdminPri
   }
 }
 
-async function catalogChatgpt(rule: ProductPricingRule | null): Promise<AdminPricingCatalog> {
+async function catalogChatgpt(
+  rule: ProductPricingRule | null,
+  categoryId?: AccountShopCategoryId,
+): Promise<AdminPricingCatalog> {
   const [remoteProducts, usdtIrtPrice] = await Promise.all([
     fetchCanbosoProducts(),
     getUsdtIrtPrice(),
@@ -316,6 +325,7 @@ async function catalogChatgpt(rule: ProductPricingRule | null): Promise<AdminPri
   const items: AdminPricingCatalogItem[] = []
 
   for (const catalogItem of ACCOUNT_SHOP_CATALOG) {
+    if (categoryId && catalogItem.categoryId !== categoryId) continue
     if (!ACCOUNT_SHOP_PRODUCT_IDS.has(catalogItem.productId)) continue
     const remote = byId.get(catalogItem.productId)
     if (!remote) continue
@@ -345,9 +355,14 @@ async function catalogChatgpt(rule: ProductPricingRule | null): Promise<AdminPri
     )
   }
 
+  const productKey = categoryId ? accountShopProductKey(categoryId) : 'chatgpt'
+  const label = categoryId
+    ? (categoryLabelMap.get(categoryId) ?? categoryId)
+    : categoryLabel('chatgpt')
+
   return {
-    productKey: 'chatgpt',
-    label: categoryLabel('chatgpt'),
+    productKey,
+    label,
     source: 'Canboso + SwapWallet',
     note: items.length ? null : 'محصولات اکانت از Canboso دریافت نشد',
     sampleHint: 'قیمت پایه از USD زنده Canboso و نرخ تتر',
@@ -378,7 +393,11 @@ function catalogGifts(rule: ProductPricingRule | null): AdminPricingCatalog {
 }
 
 export async function getAdminPricingCatalog(productKey: string): Promise<AdminPricingCatalog> {
-  const known = SHOP_CATEGORIES.some((item) => item.slug === productKey)
+  const accountCategoryId = parseAccountShopProductKey(productKey)
+  const known =
+    SHOP_CATEGORIES.some((item) => item.slug === productKey) ||
+    accountCategoryId != null ||
+    SHOP_PRODUCT_KEYS.includes(productKey)
   if (!known) {
     throw Object.assign(new Error('محصول نامعتبر است'), { statusCode: 400 })
   }
@@ -386,6 +405,10 @@ export async function getAdminPricingCatalog(productKey: string): Promise<AdminP
   const rule = await getProductPricingRule(productKey)
 
   try {
+    if (accountCategoryId) {
+      return await catalogChatgpt(rule, accountCategoryId)
+    }
+
     switch (productKey) {
       case 'telegram-stars':
         return await catalogStars(rule)
@@ -411,7 +434,10 @@ export async function getAdminPricingCatalog(productKey: string): Promise<AdminP
     const message = error instanceof Error ? error.message : 'خطا در دریافت کاتالوگ قیمت'
     return {
       productKey,
-      label: categoryLabel(productKey),
+      label: accountCategoryId
+        ? (ACCOUNT_SHOP_CATEGORIES.find((item) => item.id === accountCategoryId)?.labelFa ??
+          productKey)
+        : categoryLabel(productKey),
       source: '—',
       note: message,
       sampleHint: null,

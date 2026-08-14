@@ -1,7 +1,11 @@
+import { ACCOUNT_SHOP_PRODUCT_KEYS } from '../chatgpt/account-shop.catalog.js'
 import { SHOP_CATEGORIES } from '../orders/shop-category.data.js'
 import { z } from 'zod'
 
-export const SHOP_PRODUCT_KEYS: readonly string[] = SHOP_CATEGORIES.map((category) => category.slug)
+export const SHOP_PRODUCT_KEYS: readonly string[] = [
+  ...SHOP_CATEGORIES.map((category) => category.slug),
+  ...ACCOUNT_SHOP_PRODUCT_KEYS,
+]
 
 export const productKeySchema = z
   .string()

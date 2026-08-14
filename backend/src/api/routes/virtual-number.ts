@@ -12,7 +12,10 @@ import {
   purchaseVirtualNumberWithWallet,
   VirtualNumberPurchaseError,
 } from '../../virtual-number/virtual-number-purchase.service.js'
-import { getVirtualNumberVerificationCode } from '../../virtual-number/virtual-number-code.service.js'
+import {
+  getVirtualNumberVerificationCode,
+  logoutVirtualNumberTelegramAccount,
+} from '../../virtual-number/virtual-number-code.service.js'
 import { telegramAuthMiddleware } from '../middleware/telegram-auth.js'
 import { requireUserMiddleware } from '../middleware/require-user.js'
 function handleRouteError(error: unknown, reply: FastifyReply, scope: string): void {
@@ -100,6 +103,16 @@ export async function virtualNumberRoutes(app: FastifyInstance): Promise<void> {
       reply.send(result)
     } catch (error) {
       handleRouteError(error, reply, 'POST /virtual-number/orders/:orderId/code')
+    }
+  })
+
+  app.post('/orders/:orderId/logout', { preHandler: authChain }, async (request, reply) => {
+    try {
+      const params = request.params as { orderId: string }
+      const result = await logoutVirtualNumberTelegramAccount(request.dbUser!.id, params.orderId)
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'POST /virtual-number/orders/:orderId/logout')
     }
   })
 }

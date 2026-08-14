@@ -5,6 +5,7 @@ import { updateOrderStatus } from '../orders/order.service.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
 import type { ReactionOrderItemRecord } from '../orders/order.service.js'
 import { addPowerTelOrder, PowerTelApiError } from './powertel.client.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class ReactionPurchaseError extends Error {
   constructor(
@@ -136,6 +137,7 @@ export async function fulfillReactionOrder(orderId: string): Promise<boolean> {
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {

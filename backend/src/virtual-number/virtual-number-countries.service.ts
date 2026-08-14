@@ -31,8 +31,20 @@ function parseRange(value: number | string): number {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
-function isAvailable(count: string): boolean {
-  return count.includes('✅') || count.includes('موجود')
+export function isCallinooCountryAvailable(count: string): boolean {
+  const value = count.trim()
+  if (!value) return false
+  if (
+    value.includes('❌') ||
+    value.includes('✖') ||
+    value.includes('ناموجود') ||
+    value.includes('تمام') ||
+    value.includes('unavailable')
+  ) {
+    return false
+  }
+
+  return value.includes('✅') || value.includes('موجود') || value.includes('available')
 }
 
 function resolveQuality(price: number): VirtualNumberQuality {
@@ -49,6 +61,10 @@ function resolveQuality(price: number): VirtualNumberQuality {
 
 function sortCountries(items: VirtualNumberCountry[]): VirtualNumberCountry[] {
   return [...items].sort((left, right) => {
+    if (left.available !== right.available) {
+      return left.available ? -1 : 1
+    }
+
     if (left.price !== right.price) {
       return left.price - right.price
     }
@@ -58,10 +74,6 @@ function sortCountries(items: VirtualNumberCountry[]): VirtualNumberCountry[] {
 }
 
 function mapCountry(item: CallinooCountryRaw): VirtualNumberCountry | null {
-  if (!isAvailable(item.count)) {
-    return null
-  }
-
   const range = parseRange(item.range)
   if (range <= 0) {
     return null
@@ -90,6 +102,7 @@ function mapCountry(item: CallinooCountryRaw): VirtualNumberCountry | null {
     price,
     toman: roundDisplayTomanUp(price),
     quality: resolveQuality(price),
+    available: isCallinooCountryAvailable(item.count),
   }
 }
 
@@ -111,6 +124,7 @@ function buildGroups(countries: VirtualNumberCountry[]): VirtualNumberCountryGro
   })).filter((group) => group.items.length > 0)
 }
 
+/** Live Callinoo fetch → replace Redis snapshot. Used by cron / cold start only. */
 export async function refreshVirtualNumberCountryGroups(
   noneReport = true,
 ): Promise<VirtualNumberCountryGroup[]> {
@@ -132,18 +146,56 @@ async function withVirtualNumberPricing(
     ...group,
     items: group.items.map((item) => ({
       ...item,
+      // Keep Callinoo base in `price`; put admin-adjusted display price in `toman`.
       toman: applyPricingRule(item.price, rule),
     })),
   }))
 }
 
+/**
+ * Serve countries/prices/availability from Redis cache.
+ * Only hits Callinoo when the cache is empty (cold start).
+ * Cron refreshes the snapshot every ~10 minutes.
+ */
 export async function getVirtualNumberCountryGroups(
   noneReport = true,
 ): Promise<{ groups: VirtualNumberCountryGroup[]; cached: boolean }> {
-  const groups = await readCachedVirtualNumberCountries(noneReport)
-  if (groups) {
-    return { groups: await withVirtualNumberPricing(groups), cached: true }
+  const cached = await readCachedVirtualNumberCountries(noneReport)
+  if (cached) {
+    return { groups: await withVirtualNumberPricing(cached), cached: true }
   }
 
-  return { groups: [], cached: false }
+  const groups = await refreshVirtualNumberCountryGroups(noneReport)
+  return { groups, cached: false }
+}
+
+/** Resolve a country from the cached catalog (no live Callinoo call). */
+export async function findLiveVirtualNumberCountry(
+  countryId: string,
+  noneReport = true,
+): Promise<VirtualNumberCountry | null> {
+  const { groups } = await getVirtualNumberCountryGroups(noneReport)
+  return groups.flatMap((group) => group.items).find((item) => item.countryId === countryId) ?? null
+}
+
+export async function markVirtualNumberCountryUnavailable(
+  countryId: string,
+  noneReport = true,
+): Promise<void> {
+  const cached = await readCachedVirtualNumberCountries(noneReport)
+  if (!cached) return
+
+  let changed = false
+  const next = cached.map((group) => ({
+    ...group,
+    items: group.items.map((item) => {
+      if (item.countryId !== countryId || item.available === false) return item
+      changed = true
+      return { ...item, available: false }
+    }),
+  }))
+
+  if (changed) {
+    await writeCachedVirtualNumberCountries(noneReport, next)
+  }
 }

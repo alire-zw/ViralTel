@@ -1,5 +1,9 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db/client.js'
+import {
+  ACCOUNT_SHOP_CATEGORIES,
+  accountShopProductKey,
+} from '../chatgpt/account-shop.catalog.js'
 import { SHOP_CATEGORIES } from '../orders/shop-category.data.js'
 import type {
   CreateClubRewardInput,
@@ -191,7 +195,7 @@ export async function listProductPricing() {
   const rows = await prisma.productPricing.findMany()
   const byKey = new Map(rows.map((row) => [row.productKey, row]))
 
-  const items = SHOP_CATEGORIES.map((category) => {
+  const shopItems = SHOP_CATEGORIES.map((category) => {
     const row = byKey.get(category.slug)
     return {
       productKey: category.slug,
@@ -204,7 +208,21 @@ export async function listProductPricing() {
     }
   })
 
-  return { items }
+  const accountItems = ACCOUNT_SHOP_CATEGORIES.map((category) => {
+    const productKey = accountShopProductKey(category.id)
+    const row = byKey.get(productKey)
+    return {
+      productKey,
+      label: row?.label ?? category.labelFa,
+      markupPercent: row?.markupPercent ?? 0,
+      fixedAddToman: (row?.fixedAddToman ?? 0n).toString(),
+      isActive: row?.isActive ?? true,
+      note: row?.note ?? null,
+      updatedAt: row?.updatedAt.toISOString() ?? null,
+    }
+  })
+
+  return { items: [...shopItems, ...accountItems] }
 }
 
 export async function upsertProductPricing(input: UpsertPricingInput) {
@@ -245,6 +263,7 @@ export async function upsertProductPricing(input: UpsertPricingInput) {
 export async function listSupportTickets(query: ListTicketsQuery) {
   const where: Prisma.SupportTicketWhereInput = {}
   if (query.status) where.status = query.status
+  if (query.category) where.category = query.category
   if (query.search) {
     const q = query.search
     where.OR = [

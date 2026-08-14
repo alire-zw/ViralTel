@@ -4,6 +4,7 @@ import { deactivateChannelsByChatId } from '../../reaction/auto-reaction.service
 import { processChannelPostAutoReactions } from '../../reaction/auto-reaction.processor.js'
 import { deactivateAutoChannelViewChannelsByChatId } from '../../channel-views/auto-channel-views.service.js'
 import { processChannelPostAutoViews } from '../../channel-views/auto-channel-views.processor.js'
+import { deactivateAdminSystemChannelsByChatId } from '../../admin/admin-system-channels.service.js'
 
 function isSkippableChannelPost(ctx: Context): boolean {
   const post = ctx.channelPost
@@ -73,6 +74,7 @@ export async function handleMyChatMember(ctx: Context): Promise<void> {
   if (status === 'left' || status === 'kicked' || status === 'restricted' || status === 'member') {
     await deactivateChannelsByChatId(chat.id)
     await deactivateAutoChannelViewChannelsByChatId(chat.id)
+    await deactivateAdminSystemChannelsByChatId(chat.id)
     log.info('AUTO_CHANNEL', 'channel deactivated after bot status change', {
       chatId: chat.id,
       status,

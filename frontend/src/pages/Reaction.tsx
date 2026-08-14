@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { EmojiGlyph } from '../components/EmojiGlyph'
 import { PageHeader } from '../components/PageHeader'
 import Delete02Icon from '../components/icons/delete-02-stroke-rounded'
 import Link01Icon from '../components/icons/link-01-stroke-rounded'
@@ -475,7 +476,7 @@ export function ReactionPage() {
                   aria-label={`${option.emoji}${isSelected ? `، ${count}` : ''}`}
                 >
                   <span className="reaction__emoji-glyph" aria-hidden>
-                    {option.emoji}
+                    <EmojiGlyph emoji={option.emoji} size={18} />
                   </span>
                   {isSelected ? (
                     <span className="reaction__emoji-count">

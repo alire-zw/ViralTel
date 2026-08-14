@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { shopCategories } from '../../data/shopCategories'
+import {
+  ACCOUNT_SHOP_PRODUCT_OPTIONS,
+  parseAccountShopProductKey,
+} from '../../data/accountShopProducts'
+import ChatGPTIcon from '../../components/icons/ChatGPTIcon'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
 import {
@@ -14,6 +19,7 @@ import {
   applyPricingRule,
   invalidateShopPricingCache,
 } from '../../lib/productPricing'
+import { EmptyState } from '../../components/EmptyState'
 import { formatFaNumber } from './adminLabels'
 import { AdminScreen } from './AdminScreen'
 
@@ -32,7 +38,22 @@ function ArrowIcon() {
 }
 
 function shopMeta(productKey: string) {
-  return shopCategories.find((item) => item.id === productKey) ?? null
+  const shop = shopCategories.find((item) => item.id === productKey)
+  if (shop) return { ...shop, imageSrc: null as string | null }
+
+  const accountId = parseAccountShopProductKey(productKey)
+  if (!accountId) return null
+  const account = ACCOUNT_SHOP_PRODUCT_OPTIONS.find((item) => item.categoryId === accountId)
+  if (!account) return null
+  return {
+    id: productKey,
+    label: account.label,
+    icon: ChatGPTIcon,
+    gradient: 'linear-gradient(135deg, #10a37f 0%, #1a7f64 100%)',
+    iconColor: '#ffffff',
+    isActive: true,
+    imageSrc: account.imageSrc,
+  }
 }
 
 export function AdminPricingPage() {
@@ -223,7 +244,9 @@ export function AdminPricingPage() {
                       className="admin-price__pick-icon"
                       style={{ background: meta?.gradient ?? 'var(--surface)' }}
                     >
-                      {Icon ? (
+                      {meta?.imageSrc ? (
+                        <img src={meta.imageSrc} alt="" width={22} height={22} />
+                      ) : Icon ? (
                         <Icon width={22} height={22} color={meta?.iconColor ?? '#ffffff'} />
                       ) : null}
                     </span>
@@ -254,7 +277,9 @@ export function AdminPricingPage() {
               className="admin-price__context-icon"
               style={{ background: selectedShop?.gradient ?? 'var(--surface)' }}
             >
-              {SelectedIcon ? (
+              {selectedShop?.imageSrc ? (
+                <img src={selectedShop.imageSrc} alt="" width={26} height={26} />
+              ) : SelectedIcon ? (
                 <SelectedIcon
                   width={26}
                   height={26}
@@ -321,7 +346,7 @@ export function AdminPricingPage() {
             ) : catalog?.note && previewItems.length === 0 ? (
               <p className="admin-price__catalog-empty">{catalog.note}</p>
             ) : previewItems.length === 0 ? (
-              <p className="admin-price__catalog-empty">آیتمی برای نمایش نیست</p>
+              <EmptyState compact title="آیتمی برای نمایش نیست" />
             ) : (
               groupedPreview.map(([group, groupItems]) => (
                 <div key={group || 'default'} className="admin-price__catalog-group">

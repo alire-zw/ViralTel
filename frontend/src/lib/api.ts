@@ -7,6 +7,47 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
 
+function formatWaitFa(seconds: number): string {
+  const wait = Math.max(1, Math.ceil(seconds))
+  if (wait < 60) return `${wait} ثانیه`
+  if (wait < 3600) return `${Math.ceil(wait / 60)} دقیقه`
+  return `${Math.ceil(wait / 3600)} ساعت`
+}
+
+function localizeApiErrorMessage(
+  status: number,
+  message: string,
+  retryAfterSeconds?: number,
+): string {
+  const lower = message.toLowerCase()
+  const isRateLimit =
+    status === 429 ||
+    lower.includes('rate limit') ||
+    lower.includes('too many requests') ||
+    lower.includes('retry in')
+
+  if (isRateLimit) {
+    if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+      return `تعداد درخواست‌ها بیش از حد مجاز است. لطفاً ${formatWaitFa(retryAfterSeconds)} دیگر دوباره تلاش کنید.`
+    }
+    return 'تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.'
+  }
+
+  if (/^request failed \(\d+\)$/i.test(message)) {
+    if (status === 401) return 'نشست شما منقضی شده است. دوباره وارد شوید.'
+    if (status === 403) return 'دسترسی مجاز نیست.'
+    if (status === 404) return 'مورد درخواستی یافت نشد.'
+    if (status >= 500) return 'خطای داخلی سرور. لطفاً دوباره تلاش کنید.'
+    return 'درخواست ناموفق بود. لطفاً دوباره تلاش کنید.'
+  }
+
+  if (lower === 'internal server error' || lower === 'something went wrong') {
+    return 'خطای داخلی سرور. لطفاً دوباره تلاش کنید.'
+  }
+
+  return message
+}
+
 export function getTelegramInitData(): string | null {
   const initData = window.Telegram?.WebApp.initData
   return initData?.trim() ? initData : null
@@ -36,6 +77,14 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     let message = `Request failed (${response.status})`
     let retryAfterSeconds: number | undefined
 
+    const retryAfterHeader = response.headers.get('retry-after')
+    if (retryAfterHeader) {
+      const parsed = Number(retryAfterHeader)
+      if (Number.isFinite(parsed) && parsed > 0) {
+        retryAfterSeconds = Math.ceil(parsed)
+      }
+    }
+
     try {
       const payload = (await response.json()) as {
         message?: string
@@ -50,16 +99,20 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       // ignore parse errors
     }
 
+    message = localizeApiErrorMessage(response.status, message, retryAfterSeconds)
+
     if (
       response.status === 401 &&
       browserToken &&
       (message.toLowerCase().includes('browser session') ||
-        message.toLowerCase().includes('unauthorized'))
+        message.toLowerCase().includes('unauthorized') ||
+        message.includes('منقضی'))
     ) {
       clearBrowserSession()
     }
 
-    const error = new Error(message) as Error & { retryAfterSeconds?: number }
+    const error = new Error(message) as Error & { retryAfterSeconds?: number; status?: number }
+    error.status = response.status
     if (retryAfterSeconds !== undefined) {
       error.retryAfterSeconds = retryAfterSeconds
     }

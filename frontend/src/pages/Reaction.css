@@ -336,6 +336,13 @@
 .reaction__emoji-glyph {
   font-size: 16px;
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reaction__emoji-glyph img {
+  display: block;
 }
 
 .reaction__emoji-count {

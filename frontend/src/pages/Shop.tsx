@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SearchIcon from '../components/icons/SearchIcon'
+import { EmptyState } from '../components/EmptyState'
+import { ShopAutoServices } from '../components/ShopAutoServices'
 import { ShopBanners } from '../components/ShopBanners'
+import { ShopHighlights } from '../components/ShopHighlights'
+import { ShopPopularRails } from '../components/ShopPopularRails'
+import { ShopSpotlight } from '../components/ShopSpotlight'
 import { shopCategories } from '../data/shopCategories'
 import { shopHeroRoutes } from '../data/shopHeroPages'
+import {
+  accountShopRoute,
+  parseAccountShopProductKey,
+} from '../data/accountShopProducts'
 import { useTelegram } from '../hooks/useTelegram'
 import '../styles/shop-rise.css'
 import './Shop.css'
@@ -58,6 +67,11 @@ export function ShopPage() {
   const handleCategoryClick = (categoryId: string, isActive: boolean) => {
     if (!isActive) return
     haptic('light')
+    const accountId = parseAccountShopProductKey(categoryId)
+    if (accountId) {
+      navigate(accountShopRoute(accountId))
+      return
+    }
     const route = categoryRoutes[categoryId]
     if (route) {
       navigate(route)
@@ -111,7 +125,7 @@ export function ShopPage() {
         {showSearchResults && trimmedQuery && (
           <div ref={searchResultsRef} className="shop__search-results">
             {filteredCategories.length === 0 ? (
-              <p className="shop__search-empty">موردی یافت نشد</p>
+              <EmptyState compact title="موردی یافت نشد" />
             ) : (
               <ul className="shop__search-list">
                 {filteredCategories.map((category) => {
@@ -152,16 +166,15 @@ export function ShopPage() {
           دسته‌بندی‌ها
         </h2>
 
-        <div className="shop__categories-grid">
-          {shopCategories.map((category, index) => {
+        <div className="shop__categories-grid shop-rise" style={{ '--rise-index': 5 } as CSSProperties}>
+          {shopCategories.map((category) => {
             const Icon = category.icon
 
             return (
               <button
                 key={category.id}
                 type="button"
-                className={`shop__category shop-rise${category.isActive ? '' : ' shop__category--disabled'}`}
-                style={{ '--rise-index': 5 + index } as CSSProperties}
+                className={`shop__category${category.isActive ? '' : ' shop__category--disabled'}`}
                 onClick={() => handleCategoryClick(category.id, category.isActive)}
                 disabled={!category.isActive}
               >
@@ -180,6 +193,17 @@ export function ShopPage() {
           })}
         </div>
       </section>
+
+      <ShopSpotlight riseIndex={6} onSelect={handleCategoryClick} />
+
+      <ShopPopularRails
+        riseIndex={7}
+        onSelect={(productKey, isActive) => handleCategoryClick(productKey, isActive)}
+      />
+
+      <ShopAutoServices riseIndex={8} />
+
+      <ShopHighlights riseIndex={9} />
     </div>
   )
 }

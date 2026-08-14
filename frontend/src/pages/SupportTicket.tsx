@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import FolderAttachmentIcon from '../components/icons/folder-attachment-stroke-rounded'
+import { EmptyState } from '../components/EmptyState'
 import { ImageLightbox } from '../components/ImageLightbox'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
@@ -205,7 +206,7 @@ export function SupportTicketPage() {
             ))}
           </div>
         ) : !ticket ? (
-          <p className="support__muted">تیکت پیدا نشد</p>
+          <EmptyState title="تیکت پیدا نشد" />
         ) : (
           <div className="support__messages">
             {ticket.messages.map((message) => {

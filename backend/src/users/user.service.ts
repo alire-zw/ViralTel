@@ -34,19 +34,33 @@ export async function findUserByTelegramId(telegramId: bigint): Promise<DbUser |
 
 export async function findOrCreateUserFromTelegram(profile: TelegramProfile): Promise<DbUser> {
   const data = mapTelegramProfile(profile)
+  const updateData = {
+    username: data.username,
+    firstName: data.firstName,
+    lastName: data.lastName,
+    languageCode: data.languageCode,
+    isPremium: data.isPremium,
+    isActive: true,
+  }
 
-  const user = await prisma.user.upsert({
-    where: { telegramId: data.telegramId },
-    create: data,
-    update: {
-      username: data.username,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      languageCode: data.languageCode,
-      isPremium: data.isPremium,
-      isActive: true,
-    },
-  })
+  let user: DbUser
+  try {
+    user = await prisma.user.upsert({
+      where: { telegramId: data.telegramId },
+      create: data,
+      update: updateData,
+    })
+  } catch (error) {
+    // Concurrent requests can race on MySQL unique(telegram_id) during upsert create.
+    if (!isPrismaUniqueError(error)) {
+      throw error
+    }
+
+    user = await prisma.user.update({
+      where: { telegramId: data.telegramId },
+      data: updateData,
+    })
+  }
 
   await ensureUserTronWallet(user.id)
   return user

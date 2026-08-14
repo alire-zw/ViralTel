@@ -7,6 +7,7 @@ import {
   ticketCodeFromId,
 } from './support.serializer.js'
 import { notifySupportTicketCreated } from '../bot/notifications/support-ticket-created.js'
+import { notifyAdminTicketReport } from '../bot/notifications/admin-ticket-report.js'
 import { notifySupportTicketAnswered } from '../bot/notifications/support-ticket-answered.js'
 import {
   buildTicketDetailVersion,
@@ -246,7 +247,13 @@ export async function createUserTicket(userId: number, input: CreateUserTicketIn
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { telegramId: true },
+    select: {
+      telegramId: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      realName: true,
+    },
   })
 
   if (user) {
@@ -255,6 +262,13 @@ export async function createUserTicket(userId: number, input: CreateUserTicketIn
       ticketCode: created.ticketCode,
       category: created.category,
       orderId: created.orderId,
+    })
+
+    void notifyAdminTicketReport({
+      ticketCode: created.ticketCode,
+      category: created.category,
+      orderId: created.orderId,
+      user,
     })
   }
 
@@ -298,6 +312,27 @@ export async function replyUserTicket(
   ])
 
   void invalidateUserSupportCaches(userId, ticket.ticketCode)
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      telegramId: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      realName: true,
+    },
+  })
+
+  if (user) {
+    void notifyAdminTicketReport({
+      kind: 'reply',
+      ticketCode: ticket.ticketCode,
+      category: ticket.category,
+      orderId: ticket.orderId,
+      user,
+    })
+  }
 
   return getUserTicket(userId, ticket.ticketCode)
 }

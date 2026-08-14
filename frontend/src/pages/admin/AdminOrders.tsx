@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { shopCategories } from '../../data/shopCategories'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
@@ -156,7 +157,7 @@ export function AdminOrdersPage() {
       {loading ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : items.length === 0 ? (
-        <p className="admin__muted">سفارشی پیدا نشد</p>
+        <EmptyState title="سفارشی پیدا نشد" />
       ) : (
         <ul className="admin__list">
           {items.map((order) => (

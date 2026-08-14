@@ -1,4 +1,4 @@
-﻿.admin {
+.admin {
   overflow-x: hidden;
 }
 
@@ -785,6 +785,10 @@
   padding: 0 var(--page-padding-x) 4px;
 }
 
+.admin-hub__primary-tile--wide {
+  grid-column: 1 / -1;
+}
+
 .admin-hub__primary-tile {
   display: flex;
   align-items: center;
@@ -1461,6 +1465,158 @@
   width: 100%;
 }
 
+.admin-ticket-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-ticket-group__title {
+  margin: 0;
+  padding: 0 calc(var(--page-padding-x) + 2px);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.admin-ticket-group .admin__list {
+  margin-top: 8px;
+}
+
+/* ── System channels ─────────────────────────────────────── */
+
+.admin-sys-ch__intro {
+  margin: 0 var(--page-padding-x) 14px;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.admin-sys-ch__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 var(--page-padding-x);
+}
+
+.admin-sys-ch__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+  box-sizing: border-box;
+}
+
+.admin-sys-ch__row.is-locked {
+  opacity: 0.72;
+}
+
+.admin-sys-ch__row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-sys-ch__row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-sys-ch__row-meta {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-sys-ch__row-meta--id {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
+}
+
+.admin-sys-ch__row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-sys-ch__row-actions .admin-icon-btn.is-on {
+  color: #fb7185;
+  border-color: color-mix(in srgb, #fb7185 28%, var(--border-subtle));
+  background: color-mix(in srgb, #fb7185 10%, var(--surface));
+}
+
+.admin-sys-ch__row-actions .admin-icon-btn.is-off {
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  background: var(--surface);
+}
+
+.admin-sys-ch__row-actions .admin-icon-btn.is-danger:active {
+  color: #fb7185;
+}
+
+.admin-sys-ch__add-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, var(--hub-teal) 30%, var(--border-subtle));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--hub-teal) 12%, var(--surface));
+  color: var(--hub-teal);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.admin-sys-ch__add-btn:active {
+  transform: scale(0.97);
+}
+
+.admin-sys-ch__add {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 var(--page-padding-x);
+}
+
+.admin-sys-ch__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.admin-sys-ch__steps p {
+  margin: 0;
+}
+
+.admin-sys-ch__error {
+  font-size: 12px;
+  color: #fb7185;
+}
+
 [data-theme='light'] .admin-hub,
 [data-theme='light'] .admin-screen {
   --hub-chrome: #eef0ff;
@@ -1508,10 +1664,7 @@
   position: relative;
   z-index: 2;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--hub-chrome, var(--bg)) 72%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 70%, transparent);
+  background: transparent;
 }
 
 .admin-screen__scroll {
@@ -1523,6 +1676,7 @@
   overflow-y: auto;
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
+  padding-top: 14px;
   padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
@@ -1600,6 +1754,7 @@
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding-top: 14px;
   padding-bottom: 8px;
 }
 
@@ -2701,6 +2856,13 @@ button.admin-pay__cell:disabled {
   border-radius: 10px;
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.admin-price__pick-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-price__pick-copy {
@@ -2756,6 +2918,13 @@ button.admin-pay__cell:disabled {
   border-radius: 12px;
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.admin-price__context-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-price__context-copy {

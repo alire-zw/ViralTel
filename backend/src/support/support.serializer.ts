@@ -2,7 +2,7 @@ import type { SupportTicketCategory, SupportTicketStatus } from '@prisma/client'
 import { SUPPORT_CATEGORY_LABELS } from './support.schema.js'
 
 export function ticketCodeFromId(id: number): string {
-  return `T${String(id).padStart(5, '0')}`
+  return `T${10_000 + id}`
 }
 
 export function subjectFromCategory(category: SupportTicketCategory): string {

@@ -1,7 +1,8 @@
-import { log } from '../lib/logger.js'
+import { formatError, log } from '../lib/logger.js'
 import { refreshVirtualNumberCountryGroups } from '../virtual-number/virtual-number-countries.service.js'
 
-const REFRESH_INTERVAL_MS = 60 * 60 * 1000
+/** Poll Callinoo every 10 minutes; Redis TTL is 15 minutes. */
+const REFRESH_INTERVAL_MS = 10 * 60 * 1000
 
 let intervalHandle: ReturnType<typeof setInterval> | null = null
 let isRunning = false
@@ -18,10 +19,11 @@ async function runCountriesRefreshJob(): Promise<void> {
     log.info('CRON', 'virtual number countries refreshed', {
       groups: groups.length,
       countries: itemCount,
+      intervalMs: REFRESH_INTERVAL_MS,
     })
   } catch (error) {
     log.error('CRON', 'virtual number countries refresh failed', {
-      error: error instanceof Error ? error.message : 'unknown',
+      error: formatError(error),
     })
   } finally {
     isRunning = false

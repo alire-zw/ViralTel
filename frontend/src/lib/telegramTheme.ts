@@ -12,11 +12,14 @@ function updateMetaThemeColor(color: string) {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
 }
 
-function applyTelegramChrome(color: string) {
+function applyTelegramChrome(color: string, scheme: ColorScheme) {
   const tg = window.Telegram?.WebApp
   if (!tg) return
   tg.setHeaderColor?.(color)
   tg.setBackgroundColor?.(color)
+  // Bot API 7.10+: also paints Android system navigation bar (back / home / apps).
+  const bottomBar = scheme === 'light' ? '#ffffff' : '#000000'
+  tg.setBottomBarColor?.(bottomBar)
 }
 
 export function applyAppTheme(colorScheme: ColorScheme) {
@@ -33,13 +36,13 @@ export function syncTelegramChromeForPath(pathname: string) {
   if (isAdmin) {
     const chrome = scheme === 'light' ? ADMIN_CHROME_LIGHT : ADMIN_CHROME_DARK
     updateMetaThemeColor(chrome)
-    applyTelegramChrome(chrome)
+    applyTelegramChrome(chrome, scheme)
     return
   }
 
   const bg = readAppBackground()
   updateMetaThemeColor(bg)
-  applyTelegramChrome(bg)
+  applyTelegramChrome(bg, scheme)
 }
 
 export function getPreferredColorScheme(): ColorScheme {

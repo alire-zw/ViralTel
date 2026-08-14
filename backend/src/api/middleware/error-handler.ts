@@ -3,7 +3,7 @@ import { env } from '../../config/env.js'
 import { log } from '../../lib/logger.js'
 
 export function errorHandler(
-  error: FastifyError,
+  error: FastifyError & { retryAfterSeconds?: number },
   request: FastifyRequest,
   reply: FastifyReply,
 ): void {
@@ -17,12 +17,15 @@ export function errorHandler(
 
   const message =
     env.NODE_ENV === 'production' && statusCode >= 500
-      ? 'Internal server error'
+      ? 'خطای داخلی سرور'
       : error.message
 
   reply.code(statusCode).send({
     error: error.name || 'Error',
     message,
+    ...(typeof error.retryAfterSeconds === 'number'
+      ? { retryAfterSeconds: error.retryAfterSeconds }
+      : {}),
     ...(env.NODE_ENV !== 'production' && error.validation ? { validation: error.validation } : {}),
   })
 }

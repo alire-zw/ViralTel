@@ -11,6 +11,12 @@ import {
   buildVirtualNumberOrderId,
 } from './order.constants.js'
 import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.service.js'
+import { invalidateUserOrdersCache } from './user-orders.cache.js'
+
+function invalidateOrderCaches(userId: number): void {
+  void invalidateWalletTransactionsCache(userId)
+  void invalidateUserOrdersCache(userId)
+}
 export interface CreateStarsOrderInput {
   userId: number
   paymentMethod: OrderPaymentMethod
@@ -59,11 +65,13 @@ export async function createStarsOrder(input: CreateStarsOrderInput) {
 
   const orderId = buildStarsOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function getOrderByOrderId(orderId: string, userId?: number) {
@@ -72,6 +80,22 @@ export async function getOrderByOrderId(orderId: string, userId?: number) {
       orderId,
       ...(userId ? { userId } : {}),
     },
+    include: {
+      category: true,
+      virtualNumber: true,
+      reactionOrder: true,
+      channelViewOrder: true,
+      telegramMemberOrder: true,
+    },
+  })
+}
+
+export async function listUserOrders(userId: number, limit = 20) {
+  const take = Math.min(Math.max(limit, 1), 50)
+  return prisma.order.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take,
     include: {
       category: true,
       virtualNumber: true,
@@ -109,19 +133,23 @@ export async function getOrderByCryptoPaymentId(cryptoPaymentId: number) {
 }
 
 export async function linkOrderPayment(orderDbId: number, paymentId: number) {
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderDbId },
     data: { paymentId },
     include: { category: true },
   })
+  invalidateOrderCaches(updated.userId)
+  return updated
 }
 
 export async function linkOrderCryptoPayment(orderDbId: number, cryptoPaymentId: number) {
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderDbId },
     data: { cryptoPaymentId },
     include: { category: true },
   })
+  invalidateOrderCaches(updated.userId)
+  return updated
 }
 
 export async function updateOrderStatus(
@@ -129,7 +157,7 @@ export async function updateOrderStatus(
   status: OrderStatus,
   timestamps?: { fulfilledAt?: Date; failedAt?: Date },
 ) {
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderDbId },
     data: {
       status,
@@ -138,6 +166,8 @@ export async function updateOrderStatus(
     },
     include: { category: true },
   })
+  invalidateOrderCaches(updated.userId)
+  return updated
 }
 
 export async function markOrderFailedByPaymentId(paymentId: number) {
@@ -170,7 +200,7 @@ export async function markOrderFailedByPaymentId(paymentId: number) {
   })
 
   if (updated) {
-    void invalidateWalletTransactionsCache(updated.userId)
+    invalidateOrderCaches(updated.userId)
   }
 
   return updated
@@ -237,11 +267,13 @@ export async function createPremiumOrder(input: CreatePremiumOrderInput) {
 
   const orderId = buildPremiumOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function createPremiumOrderForUser(
@@ -297,11 +329,13 @@ export async function createVirtualNumberOrder(input: CreateVirtualNumberOrderIn
 
   const orderId = buildVirtualNumberOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function createVirtualNumberOrderForUser(
@@ -383,11 +417,13 @@ export async function createReactionOrder(input: CreateReactionOrderInput) {
 
   const orderId = buildReactionOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true, reactionOrder: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function createReactionOrderForUser(
@@ -464,11 +500,13 @@ export async function createChannelViewsOrder(input: CreateChannelViewsOrderInpu
 
   const orderId = buildChannelViewsOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true, channelViewOrder: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function createChannelViewsOrderForUser(
@@ -543,11 +581,13 @@ export async function createTelegramMembersOrder(input: CreateTelegramMembersOrd
 
   const orderId = buildTelegramMembersOrderId(order.id)
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: order.id },
     data: { orderId },
     include: { category: true, telegramMemberOrder: true },
   })
+  invalidateOrderCaches(input.userId)
+  return updated
 }
 
 export async function createTelegramMembersOrderForUser(

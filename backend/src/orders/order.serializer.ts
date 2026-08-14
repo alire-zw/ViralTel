@@ -24,6 +24,7 @@ export interface SerializedVirtualNumber {
   providerOrderId: string
   price: string
   code: string | null
+  loggedOutAt: string | null
 }
 
 export interface SerializedReactionOrder {
@@ -99,6 +100,7 @@ function serializeVirtualNumber(
     providerOrderId: item.providerOrderId,
     price: item.price.toString(),
     code: item.code,
+    loggedOutAt: item.loggedOutAt?.toISOString() ?? null,
   }
 }
 

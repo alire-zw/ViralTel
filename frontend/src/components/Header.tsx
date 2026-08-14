@@ -8,7 +8,17 @@ import { defaultAvatar, HEADER_BOX_SIZE } from './headerConstants'
 import { shopHeroNavPaths } from '../data/shopHeroPages'
 import './Header.css'
 
-const hiddenPaths = ['/login', '/profile', '/wallet', '/stars', '/premium', '/admin', ...shopHeroNavPaths]
+const hiddenPaths = [
+  '/login',
+  '/profile',
+  '/wallet',
+  '/stars',
+  '/premium',
+  '/orders',
+  '/my-virtual-numbers',
+  '/admin',
+  ...shopHeroNavPaths,
+]
 
 export function Header() {
   const { pathname } = useLocation()

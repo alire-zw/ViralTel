@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ComplaintIcon from '../components/icons/complaint-stroke-rounded'
 import Ticket02Icon from '../components/icons/ticket-02-stroke-rounded'
+import { EmptyState } from '../components/EmptyState'
 import { useTelegram } from '../hooks/useTelegram'
 import { isTelegramWebApp } from '../lib/api'
 import {
@@ -259,7 +260,7 @@ export function SupportPage() {
         </div>
       ) : hasFetched && items.length === 0 ? (
         <div className="support__ticket-panel shop-rise" style={{ '--rise-index': 4 } as CSSProperties}>
-          <p className="support__empty-inline">هنوز تیکتی ثبت نکرده‌اید</p>
+          <EmptyState title="هنوز تیکتی ثبت نکرده‌اید" />
         </div>
       ) : (
         <div className="support__ticket-panel shop-rise" style={{ '--rise-index': 4 } as CSSProperties}>

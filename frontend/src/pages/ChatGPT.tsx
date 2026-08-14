@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { ACCOUNT_SHOP_CATEGORY_OPTIONS } from '../data/accountShopCategories'
+import { accountShopRoute } from '../data/accountShopProducts'
 import { shopHeroPages } from '../data/shopHeroPages'
 import { useTelegram } from '../hooks/useTelegram'
-import { useProductPageView } from '../hooks/useProductPageView'
 import { isTelegramWebApp } from '../lib/api'
 import type { AccountShopCategoryId } from '../lib/chatgpt'
 import '../styles/shop-rise.css'
@@ -14,21 +13,11 @@ import './ChatGPT.css'
 const heroConfig = shopHeroPages.chatgpt
 
 export function ChatGPTPage() {
-  useProductPageView('chatgpt')
   const navigate = useNavigate()
   const { haptic } = useTelegram()
   const [selectedCategoryId, setSelectedCategoryId] = useState<AccountShopCategoryId | null>(null)
   const [animatedReady, setAnimatedReady] = useState(false)
   const animatedRef = useRef<HTMLImageElement>(null)
-  const [notification, setNotification] = useState<{
-    show: boolean
-    message: string
-    type: 'success' | 'error' | 'warning' | 'info'
-  }>({
-    show: false,
-    message: '',
-    type: 'info',
-  })
 
   const handleBack = useCallback(() => navigate(-1), [navigate])
 
@@ -60,22 +49,11 @@ export function ChatGPTPage() {
   const handleContinue = () => {
     if (!selectedCategory) return
     haptic('light')
-    setNotification({
-      show: true,
-      message: `صفحه محصولات ${selectedCategory.label} به‌زودی اضافه می‌شود`,
-      type: 'info',
-    })
+    navigate(accountShopRoute(selectedCategory.id))
   }
 
   return (
     <div className="account-shop">
-      <Notification
-        show={notification.show}
-        message={notification.message}
-        type={notification.type}
-        onClose={() => setNotification((prev) => ({ ...prev, show: false }))}
-      />
-
       <div className="shop-rise" style={{ '--rise-index': 0 } as CSSProperties}>
         <PageHeader title="خرید اکانت" onBack={handleBack} />
       </div>

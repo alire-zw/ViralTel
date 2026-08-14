@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { EmojiGlyph } from '../components/EmojiGlyph'
 import { PageHeader } from '../components/PageHeader'
 import SuccessIcon from '../components/icons/SuccessIcon'
 import { useTelegram } from '../hooks/useTelegram'
@@ -153,7 +154,7 @@ export function ReactionPaymentSuccessPage() {
                   aria-label={`${item.emoji}، ${item.quantity}`}
                 >
                   <span className="reaction-success-emojis__glyph" aria-hidden>
-                    {item.emoji}
+                    <EmojiGlyph emoji={item.emoji} size={18} />
                   </span>
                   <span className="reaction-success-emojis__count">
                     {item.quantity.toLocaleString('fa-IR')}

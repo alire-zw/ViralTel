@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
+import CopyIcon from '../../components/icons/CopyIcon'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
 import { fetchAdminPayments, type AdminPaymentListItem } from '../../lib/adminApi'
@@ -13,7 +15,6 @@ import {
   paymentTitle,
 } from './adminLabels'
 import { AdminScreen } from './AdminScreen'
-import CopyIcon from '../../components/icons/CopyIcon'
 
 const STATUS_FILTERS = [
   { value: 'all', label: 'همه' },
@@ -136,7 +137,7 @@ export function AdminPaymentsPage() {
       {loading ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : items.length === 0 ? (
-        <p className="admin__muted">پرداختی پیدا نشد</p>
+        <EmptyState title="پرداختی پیدا نشد" />
       ) : (
         <ul className="admin__list">
           {items.map((payment) => (

@@ -3,7 +3,9 @@ import { prisma } from '../db/client.js'
 import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.service.js'
 import { updateOrderStatus } from '../orders/order.service.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
-import { purchaseCallinooNumber } from './callinoo.client.js'
+import { isCallinooStockError, purchaseCallinooNumber } from './callinoo.client.js'
+import { markVirtualNumberCountryUnavailable } from './virtual-number-countries.service.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class VirtualNumberPurchaseError extends Error {
   constructor(
@@ -100,6 +102,7 @@ export async function fulfillVirtualNumberOrder(orderId: string): Promise<boolea
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {
@@ -109,6 +112,15 @@ export async function fulfillVirtualNumberOrder(orderId: string): Promise<boolea
       orderId: order.orderId,
       error: error instanceof Error ? error.message : 'unknown',
     })
+
+    const rawMessage = error instanceof Error ? error.message : ''
+    if (isCallinooStockError(rawMessage)) {
+      void markVirtualNumberCountryUnavailable(countryId, true)
+      throw new VirtualNumberPurchaseError(
+        'در حال حاضر این کشور ناموجود است. لطفاً کشور دیگری انتخاب کنید.',
+        'COUNTRY_UNAVAILABLE',
+      )
+    }
 
     throw new VirtualNumberPurchaseError('خطا در خرید شماره مجازی', 'FULFILLMENT_FAILED')
   }

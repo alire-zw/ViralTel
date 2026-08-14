@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BottomSheet } from '../components/BottomSheet'
+import { Notification } from '../components/Notification'
 import AdminIcon from '../components/icons/AdminIcon'
 import AiAutoRotateIcon from '../components/icons/ai-auto-rotate-stroke-rounded'
 import BankCardIcon from '../components/icons/BankCardIcon'
@@ -104,7 +105,15 @@ export function ProfilePage() {
   const { themeMode, setTheme } = useTheme()
   const [isThemeSheetOpen, setIsThemeSheetOpen] = useState(false)
   const [isSocialSheetOpen, setIsSocialSheetOpen] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const [notification, setNotification] = useState<{
+    show: boolean
+    message: string
+    type: 'success' | 'error' | 'warning' | 'info'
+  }>({
+    show: false,
+    message: '',
+    type: 'success',
+  })
   const [showCredits, setShowCredits] = useState(() => readProfileCreditsShown())
 
   useEffect(() => {
@@ -131,10 +140,9 @@ export function ProfilePage() {
     try {
       await navigator.clipboard.writeText(userId)
       haptic('light')
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
+      setNotification({ show: true, message: 'کپی شد', type: 'success' })
     } catch {
-      // ignore clipboard errors
+      setNotification({ show: true, message: 'کپی شناسه ناموفق بود', type: 'error' })
     }
   }
 
@@ -206,6 +214,13 @@ export function ProfilePage() {
 
   return (
     <div className="profile">
+      <Notification
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification((prev) => ({ ...prev, show: false }))}
+      />
+
       <div
         className="profile__header shop-rise"
         style={{ '--rise-index': 0 } as CSSProperties}
@@ -230,7 +245,6 @@ export function ProfilePage() {
                 </button>
               )}
             </div>
-            {copied && <span className="profile__copied">کپی شد</span>}
           </div>
           <div className="profile__spacer" />
           {roleStyles && (

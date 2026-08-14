@@ -63,7 +63,8 @@ function prismaClientIsStale(): boolean {
     !content.includes('termsAcceptedAt') ||
     !content.includes('BankCard') ||
     !content.includes('ProductViewStat') ||
-    !content.includes('SiteOnlineStat')
+    !content.includes('SiteOnlineStat') ||
+    !content.includes('ShopBanner')
   )
 }
 
@@ -104,6 +105,11 @@ async function databaseHasProductViewStatsTable(connection: mysql.Connection): P
 
 async function databaseHasSiteOnlineStatsTable(connection: mysql.Connection): Promise<boolean> {
   const [rows] = await connection.query('SHOW TABLES LIKE ?', ['site_online_stats'])
+  return Array.isArray(rows) && rows.length > 0
+}
+
+async function databaseHasShopBannersTable(connection: mysql.Connection): Promise<boolean> {
+  const [rows] = await connection.query('SHOW TABLES LIKE ?', ['shop_banners'])
   return Array.isArray(rows) && rows.length > 0
 }
 
@@ -293,6 +299,23 @@ export async function prepareDatabase(): Promise<void> {
       !(await databaseHasSiteOnlineStatsTable(connection))
     ) {
       syncDatabaseSchema()
+      schemaChanged = true
+    } else if (!(await databaseHasShopBannersTable(connection))) {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS \`shop_banners\` (
+          \`id\` INT NOT NULL AUTO_INCREMENT,
+          \`title\` VARCHAR(128) NOT NULL,
+          \`product_key\` VARCHAR(96) NOT NULL,
+          \`main_image_url\` VARCHAR(512) NOT NULL,
+          \`thumb_image_url\` VARCHAR(512) NOT NULL,
+          \`sort_order\` INT NOT NULL DEFAULT 0,
+          \`is_active\` BOOLEAN NOT NULL DEFAULT true,
+          \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` DATETIME(3) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          INDEX \`shop_banners_is_active_sort_order_idx\` (\`is_active\`, \`sort_order\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
       schemaChanged = true
     }
   } finally {

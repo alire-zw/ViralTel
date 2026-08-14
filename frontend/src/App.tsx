@@ -1,10 +1,13 @@
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { BrowserLoginPage } from './pages/BrowserLogin'
 import { BottomNav } from './components/BottomNav'
 import { Header } from './components/Header'
 import CollaborationIcon from './components/icons/CollaborationIcon'
 import { HomePage } from './pages/Home'
+import { OrderDetailPage } from './pages/OrderDetail'
+import { OrdersListPage } from './pages/OrdersList'
+import { MyVirtualNumbersPage } from './pages/MyVirtualNumbers'
 import { ProfileInfoPage } from './pages/ProfileInfo'
 import { ProfileCardsPage } from './pages/ProfileCards'
 import { ProfileChargeHistoryPage } from './pages/ProfileChargeHistory'
@@ -53,6 +56,8 @@ import { TelegramMembersConfirmPage } from './pages/TelegramMembersConfirm'
 import { TelegramMembersPaymentSuccessPage } from './pages/TelegramMembersPaymentSuccess'
 import { TelegramMembersPaymentFailedPage } from './pages/TelegramMembersPaymentFailed'
 import { ChatGPTPage } from './pages/ChatGPT'
+import { ChatGPTProductsPage } from './pages/ChatGPTProducts'
+import { ChatGPTConfirmPage } from './pages/ChatGPTConfirm'
 import { AdminPage } from './pages/Admin'
 import { AdminUsersPage } from './pages/admin/AdminUsers'
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetail'
@@ -68,6 +73,9 @@ import { AdminToolsPage } from './pages/admin/AdminTools'
 import { AdminDiscountsPage } from './pages/admin/AdminDiscounts'
 import { AdminPricingPage } from './pages/admin/AdminPricing'
 import { AdminTicketsPage } from './pages/admin/AdminTickets'
+import { AdminSystemChannelsPage } from './pages/admin/AdminSystemChannels'
+import { AdminShopBannersPage } from './pages/admin/AdminShopBanners'
+import { AdminShopBannerCreatePage } from './pages/admin/AdminShopBannerCreate'
 import { SupportPage } from './pages/Support'
 import { SupportNewPage } from './pages/SupportNew'
 import { SupportTicketPage } from './pages/SupportTicket'
@@ -76,6 +84,7 @@ import { shopHeroNavPaths } from './data/shopHeroPages'
 import { useTelegram } from './hooks/useTelegram'
 import { lockAppScroll, unlockAppScroll } from './lib/scrollLock'
 import { syncTelegramChromeForPath } from './lib/telegramTheme'
+import { ChannelLockGate } from './components/ChannelLockGate'
 import './App.css'
 
 const noBottomNavPaths = [
@@ -83,6 +92,8 @@ const noBottomNavPaths = [
   '/wallet',
   '/stars',
   '/premium',
+  '/orders',
+  '/my-virtual-numbers',
   '/profile/info',
   '/profile/cards',
   '/profile/charge-history',
@@ -94,6 +105,7 @@ const lockScrollPrefixPaths = ['/wallet/charge', '/wallet/transfer', '/stars/kyc
 function AppShell() {
   const { isReady } = useTelegram()
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const hideBottomNav =
     noBottomNavPaths.some(
       (path) => pathname === path || pathname.startsWith(`${path}/`),
@@ -118,6 +130,14 @@ function AppShell() {
     if (!isReady) return
     syncTelegramChromeForPath(pathname)
   }, [isReady, pathname])
+
+  useEffect(() => {
+    if (!isReady) return
+    const startParam = window.Telegram?.WebApp.initDataUnsafe?.start_param?.trim()
+    if (startParam === 'profile' && pathname !== '/profile') {
+      navigate('/profile', { replace: true })
+    }
+  }, [isReady, navigate, pathname])
 
   if (!isReady) {
     return (
@@ -186,7 +206,12 @@ function AppShell() {
             element={<TelegramMembersPaymentFailedPage />}
           />
           <Route path="/chatgpt" element={<ChatGPTPage />} />
+          <Route path="/chatgpt/:categoryId/confirm" element={<ChatGPTConfirmPage />} />
+          <Route path="/chatgpt/:categoryId" element={<ChatGPTProductsPage />} />
           <Route path="/dashboard" element={<HomePage />} />
+          <Route path="/orders" element={<OrdersListPage />} />
+          <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+          <Route path="/my-virtual-numbers" element={<MyVirtualNumbersPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/users/:id" element={<AdminUserDetailPage />} />
@@ -201,6 +226,9 @@ function AppShell() {
           <Route path="/admin/discounts" element={<AdminDiscountsPage />} />
           <Route path="/admin/pricing" element={<AdminPricingPage />} />
           <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+          <Route path="/admin/system-channels" element={<AdminSystemChannelsPage />} />
+          <Route path="/admin/shop-banners" element={<AdminShopBannersPage />} />
+          <Route path="/admin/shop-banners/new" element={<AdminShopBannerCreatePage />} />
           <Route path="/admin/tools" element={<AdminToolsPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/new" element={<SupportNewPage />} />
@@ -233,6 +261,7 @@ function AppShell() {
         </main>
       </div>
       {!hideBottomNav && <BottomNav />}
+      <ChannelLockGate />
     </div>
   )
 }

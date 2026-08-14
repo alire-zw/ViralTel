@@ -30,8 +30,20 @@ export default defineConfig({
     strictPort: true,
     host: true,
     allowedHosts: ['www.viraltel.ir', 'proxtest2.mirall.ir', 'api.viraltel.ir', '.viraltel.ir', '.mirall.ir'],
+    // Keep HMR on loopback only. If the client tries wss://proxtest2.mirall.ir through
+    // cloudflared HTTP/2, aborted WS/HMR streams spam "http2: stream closed".
+    hmr: {
+      host: '127.0.0.1',
+      port: 6543,
+      clientPort: 6543,
+      protocol: 'ws',
+    },
     proxy: {
       '/api': {
+        target: 'http://localhost:4321',
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: 'http://localhost:4321',
         changeOrigin: true,
       },

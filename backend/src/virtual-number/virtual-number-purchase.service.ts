@@ -5,7 +5,7 @@ import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.
 import {
   createVirtualNumberOrderForUser,
 } from '../orders/order.service.js'
-import { getVirtualNumberCountryGroups } from './virtual-number-countries.service.js'
+import { findLiveVirtualNumberCountry } from './virtual-number-countries.service.js'
 import {
   fulfillVirtualNumberOrder,
   VirtualNumberPurchaseError,
@@ -13,13 +13,17 @@ import {
 import type { VirtualNumberPurchaseBody } from './virtual-number.schema.js'
 
 async function assertPurchasePrice(input: VirtualNumberPurchaseBody): Promise<number> {
-  const { groups } = await getVirtualNumberCountryGroups(input.noneReport)
-  const country = groups
-    .flatMap((group) => group.items)
-    .find((item) => item.countryId === input.countryId)
+  const country = await findLiveVirtualNumberCountry(input.countryId, input.noneReport)
 
   if (!country) {
     throw new VirtualNumberPurchaseError('کشور انتخاب‌شده موجود نیست', 'COUNTRY_UNAVAILABLE')
+  }
+
+  if (!country.available) {
+    throw new VirtualNumberPurchaseError(
+      'در حال حاضر این کشور ناموجود است. لطفاً کشور دیگری انتخاب کنید.',
+      'COUNTRY_UNAVAILABLE',
+    )
   }
 
   if (country.toman !== input.toman) {

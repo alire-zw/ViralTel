@@ -5,6 +5,7 @@ import { updateOrderStatus } from '../orders/order.service.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
 import { addPowerTelOrder, PowerTelApiError } from '../reaction/powertel.client.js'
 import { CHANNEL_VIEW_SERVICE_ID } from './channel-views.pricing.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class ChannelViewsPurchaseError extends Error {
   constructor(
@@ -52,6 +53,7 @@ export async function fulfillChannelViewsOrder(orderId: string): Promise<boolean
 
   if (channelView.providerOrderId) {
     await updateOrderStatus(order.id, 'completed', { fulfilledAt: new Date() })
+    void notifyOrderCompleted(order.orderId)
     return true
   }
 
@@ -88,6 +90,7 @@ export async function fulfillChannelViewsOrder(orderId: string): Promise<boolean
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {

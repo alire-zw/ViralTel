@@ -46,6 +46,30 @@ import {
 } from '../../admin/admin-commerce.service.js'
 import { getAdminPricingCatalog } from '../../admin/admin-pricing-catalog.service.js'
 import {
+  createShopBannerSchema,
+  updateShopBannerSchema,
+} from '../../admin/admin-shop-banners.schema.js'
+import {
+  createShopBanner,
+  deleteShopBanner,
+  listShopBannersAdmin,
+  updateShopBanner,
+} from '../../admin/admin-shop-banners.service.js'
+import {
+  AdminSystemChannelError,
+  deactivateAdminSystemChannel,
+  deleteAdminSystemChannel,
+  getAdminSystemChannelsBotInfo,
+  listAdminSystemChannels,
+  registerAdminSystemChannel,
+  setAdminSystemChannelActive,
+} from '../../admin/admin-system-channels.service.js'
+import {
+  adminSystemChannelSlotSchema,
+  registerAdminSystemChannelSchema,
+  setAdminSystemChannelActiveSchema,
+} from '../../admin/admin-system-channels.schema.js'
+import {
   getSupportTelegramUsername,
   setSupportTelegramUsername,
 } from '../../support/support-contact.service.js'
@@ -60,6 +84,23 @@ function handleRouteError(error: unknown, reply: FastifyReply, scope: string): v
       error: 'ValidationError',
       message: 'Invalid request data',
       details: error.flatten(),
+    })
+    return
+  }
+
+  if (error instanceof AdminSystemChannelError) {
+    const status =
+      error.code === 'NOT_FOUND'
+        ? 404
+        : error.code === 'BOT_NOT_ADMIN' ||
+            error.code === 'USER_NOT_ADMIN' ||
+            error.code === 'CHANNEL_UNAVAILABLE'
+          ? 409
+          : 400
+    reply.code(status).send({
+      error: 'AdminSystemChannelError',
+      message: error.message,
+      code: error.code,
     })
     return
   }
@@ -294,6 +335,139 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       const result = await replySupportTicket(id, replyTicketSchema.parse(request.body))
       if (!result) {
         reply.code(404).send({ error: 'NotFound', message: 'Ticket not found' })
+        return
+      }
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/system-channels/bot', { preHandler: mainAdminChain }, async (_request, reply) => {
+    try {
+      reply.send(await getAdminSystemChannelsBotInfo())
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/system-channels', { preHandler: mainAdminChain }, async (_request, reply) => {
+    try {
+      reply.send(await listAdminSystemChannels())
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.post('/system-channels/:slotKey/register', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const slotKey = adminSystemChannelSlotSchema.parse(
+        (request.params as { slotKey?: string }).slotKey,
+      )
+      const body = registerAdminSystemChannelSchema.parse(request.body)
+      reply.send(await registerAdminSystemChannel(request.dbUser!, slotKey, body.link))
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.post(
+    '/system-channels/:slotKey/deactivate',
+    { preHandler: mainAdminChain },
+    async (request, reply) => {
+      try {
+        const slotKey = adminSystemChannelSlotSchema.parse(
+          (request.params as { slotKey?: string }).slotKey,
+        )
+        reply.send(await deactivateAdminSystemChannel(slotKey))
+      } catch (error) {
+        handleRouteError(error, reply, 'ADMIN')
+      }
+    },
+  )
+
+  app.post(
+    '/system-channels/:slotKey/active',
+    { preHandler: mainAdminChain },
+    async (request, reply) => {
+      try {
+        const slotKey = adminSystemChannelSlotSchema.parse(
+          (request.params as { slotKey?: string }).slotKey,
+        )
+        const body = setAdminSystemChannelActiveSchema.parse(request.body)
+        reply.send(await setAdminSystemChannelActive(slotKey, body.isActive))
+      } catch (error) {
+        handleRouteError(error, reply, 'ADMIN')
+      }
+    },
+  )
+
+  app.delete('/system-channels/:slotKey', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const slotKey = adminSystemChannelSlotSchema.parse(
+        (request.params as { slotKey?: string }).slotKey,
+      )
+      reply.send(await deleteAdminSystemChannel(slotKey))
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/shop-banners', { preHandler: mainAdminChain }, async (_request, reply) => {
+    try {
+      reply.send(await listShopBannersAdmin())
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.post(
+    '/shop-banners',
+    {
+      preHandler: mainAdminChain,
+      bodyLimit: 12_000_000,
+    },
+    async (request, reply) => {
+      try {
+        reply.code(201).send(await createShopBanner(createShopBannerSchema.parse(request.body)))
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('تصویر')) {
+          reply.code(400).send({ error: 'ValidationError', message: error.message })
+          return
+        }
+        handleRouteError(error, reply, 'ADMIN')
+      }
+    },
+  )
+
+  app.patch('/shop-banners/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = Number((request.params as { id?: string }).id)
+      if (!Number.isFinite(id)) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      const result = await updateShopBanner(id, updateShopBannerSchema.parse(request.body))
+      if (!result) {
+        reply.code(404).send({ error: 'NotFound', message: 'Banner not found' })
+        return
+      }
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.delete('/shop-banners/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = Number((request.params as { id?: string }).id)
+      if (!Number.isFinite(id)) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      const result = await deleteShopBanner(id)
+      if (!result) {
+        reply.code(404).send({ error: 'NotFound', message: 'Banner not found' })
         return
       }
       reply.send(result)

@@ -1,4 +1,5 @@
 import { SHOP_HERO_CACHE_VERSION, shopHeroAssetUrls } from '../data/shopHeroAssets'
+import { warmAppleReactionEmojiCache } from './appleEmojiCache'
 
 const CACHE_NAME = `numberstar-shop-heroes-${SHOP_HERO_CACHE_VERSION}`
 
@@ -34,6 +35,7 @@ export async function warmShopHeroCache(): Promise<void> {
 export function initAppAssetCache(): void {
   registerAppAssetServiceWorker()
   void warmShopHeroCache()
+  void warmAppleReactionEmojiCache()
 }
 
 /** @deprecated Use initAppAssetCache */

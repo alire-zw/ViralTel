@@ -13,6 +13,8 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
   TELEGRAM_BOT_TOKEN: z.string().min(1),
   TELEGRAM_BOT_SECRET: z.string().min(32),
+  /** Optional Bot API root (useful when api.telegram.org is blocked). */
+  TELEGRAM_API_ROOT: z.string().url().default('https://api.telegram.org'),
   PUBLIC_URL: z.string().url(),
   WEBHOOK_PATH: z.string().startsWith('/').default('/bot/webhook'),
   MINI_APP_URL: z.string().url(),

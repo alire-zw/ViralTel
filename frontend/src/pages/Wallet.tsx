@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { TransactionDetailSheet } from '../components/TransactionDetailSheet'
@@ -12,7 +13,6 @@ import MoneyReceiveFlow02Icon from '../components/icons/money-receive-flow-02-st
 import MoneyRemove02Icon from '../components/icons/money-remove-02-stroke-rounded'
 import MoneySend02Icon from '../components/icons/money-send-02-stroke-rounded'
 import MoneySendFlow02Icon from '../components/icons/money-send-flow-02-stroke-rounded'
-import PaymentFailedIcon from '../components/icons/PaymentFailedIcon'
 import { useUser } from '../context/UserContext'
 import { useTelegram } from '../hooks/useTelegram'
 import { fetchPaymentOrder, openPaymentUrl } from '../lib/payments'
@@ -126,11 +126,9 @@ function getTransactionIconClass(transaction: WalletTransaction): string {
 
 function TransactionRow({
   transaction,
-  riseIndex,
   onClick,
 }: {
   transaction: WalletTransaction
-  riseIndex: number
   onClick?: (transaction: WalletTransaction) => void
 }) {
   const isClickable = Boolean(onClick)
@@ -139,10 +137,9 @@ function TransactionRow({
 
   return (
     <div
-      className={`wallet__transaction shop-rise${
+      className={`wallet__transaction${
         isClickable ? ' wallet__transaction--clickable' : ''
       }`}
-      style={{ '--rise-index': riseIndex } as CSSProperties}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onClick={isClickable ? () => onClick?.(transaction) : undefined}
@@ -292,11 +289,6 @@ export function WalletPage() {
     }
   }, [navigate])
 
-  const handleAction = (action: () => void) => {
-    haptic('light')
-    action()
-  }
-
   const handleRetryBalance = () => {
     haptic('light')
     setIsBalanceLoading(true)
@@ -429,30 +421,27 @@ export function WalletPage() {
           </div>
         </section>
 
-        <div
-          className="wallet__actions shop-rise"
-          style={{ '--rise-index': 2 } as CSSProperties}
-        >
-          <button
-            type="button"
+        <div className="wallet__actions">
+          <Link
+            to="/wallet/charge"
             className="wallet__action wallet__action--charge"
-            onClick={() => handleAction(() => navigate('/wallet/charge'))}
+            onClick={() => haptic('light')}
           >
             <span className="wallet__action-icon">
               <MoneyAdd02Icon width={18} height={18} />
             </span>
             <span className="wallet__action-label">شارژ حساب</span>
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            to="/wallet/transfer"
             className="wallet__action wallet__action--transfer"
-            onClick={() => handleAction(() => navigate('/wallet/transfer'))}
+            onClick={() => haptic('light')}
           >
             <span className="wallet__action-icon">
               <MoneySend02Icon width={18} height={18} />
             </span>
             <span className="wallet__action-label">انتقال موجودی</span>
-          </button>
+          </Link>
         </div>
 
         <h3
@@ -469,38 +458,27 @@ export function WalletPage() {
       <div className="wallet__transactions-scroll">
         <div className="wallet__transactions">
           {transactionsError ? (
-            <div
-              className="wallet__empty shop-rise"
+            <EmptyState
+              className="shop-rise"
               style={{ '--rise-index': 4 } as CSSProperties}
-            >
-              <span className="wallet__empty-icon">
-                <PaymentFailedIcon width={22} height={22} />
-              </span>
-              <p className="wallet__empty-text">{transactionsError}</p>
-              <button
-                type="button"
-                className="wallet__balance-retry"
-                onClick={handleRetryTransactions}
-              >
-                تلاش مجدد
-              </button>
-            </div>
+              title={transactionsError}
+              action={
+                <button type="button" className="wallet__balance-retry" onClick={handleRetryTransactions}>
+                  تلاش مجدد
+                </button>
+              }
+            />
           ) : hasFetchedTransactions && transactions.length === 0 ? (
-            <div
-              className="wallet__empty shop-rise"
+            <EmptyState
+              className="shop-rise"
               style={{ '--rise-index': 4 } as CSSProperties}
-            >
-              <span className="wallet__empty-icon">
-                <PaymentFailedIcon width={22} height={22} />
-              </span>
-              <p className="wallet__empty-text">هنوز تراکنشی ثبت نشده است</p>
-            </div>
+              title="هنوز تراکنشی ثبت نشده است"
+            />
           ) : (
-            transactions.map((transaction, index) => (
+            transactions.map((transaction) => (
               <TransactionRow
                 key={transaction.id}
                 transaction={transaction}
-                riseIndex={4 + index}
                 onClick={handleTransactionClick}
               />
             ))

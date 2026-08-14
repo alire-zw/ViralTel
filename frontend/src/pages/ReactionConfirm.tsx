@@ -5,6 +5,7 @@ import {
   getConfirmPayableToman,
   getDefaultConfirmPaymentMethod,
 } from '../components/ConfirmPaymentMethods'
+import { EmojiGlyph } from '../components/EmojiGlyph'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { useUser } from '../context/UserContext'
@@ -282,7 +283,7 @@ export function ReactionConfirmPage() {
           {reactions.map((item) => (
             <div key={item.serviceId} className="reaction-confirm__emoji-btn" aria-label={`${item.emoji}، ${item.quantity}`}>
               <span className="reaction-confirm__emoji-glyph" aria-hidden>
-                {item.emoji}
+                <EmojiGlyph emoji={item.emoji} size={20} />
               </span>
               <span className="reaction-confirm__emoji-count">
                 {item.quantity.toLocaleString('fa-IR')}

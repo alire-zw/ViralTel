@@ -56,6 +56,7 @@ export const listTicketsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(['open', 'answered', 'closed']).optional(),
+  category: z.enum(['sales', 'product', 'kyc', 'wallet', 'other']).optional(),
   search: z.string().trim().max(128).optional(),
 })
 

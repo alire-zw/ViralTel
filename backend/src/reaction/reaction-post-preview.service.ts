@@ -1,3 +1,5 @@
+import { telegramWebFetch } from '../bot/telegram-api-access.js'
+
 export class ReactionPostPreviewError extends Error {
   readonly code: 'INVALID_LINK' | 'PRIVATE_POST' | 'NOT_FOUND' | 'FETCH_FAILED'
 
@@ -232,7 +234,7 @@ export async function fetchReactionPostPreview(rawLink: string): Promise<Reactio
 
   let html: string
   try {
-    const response = await fetch(embedUrl, {
+    const response = await telegramWebFetch(embedUrl, {
       method: 'GET',
       headers: {
         Accept: 'text/html,application/xhtml+xml',

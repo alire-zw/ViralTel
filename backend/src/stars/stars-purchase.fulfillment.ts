@@ -4,6 +4,7 @@ import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.
 import { buyStars } from './marketapp.client.js'
 import { failOrderAndRefundMixedWallet } from '../orders/order-wallet-refund.js'
 import { updateOrderStatus } from '../orders/order.service.js'
+import { notifyOrderCompleted } from '../bot/notifications/order-report.js'
 
 export class StarsPurchaseError extends Error {
   constructor(
@@ -79,6 +80,7 @@ export async function fulfillStarsOrder(orderId: string): Promise<boolean> {
     })
 
     void invalidateWalletTransactionsCache(order.userId)
+    void notifyOrderCompleted(order.orderId)
 
     return true
   } catch (error) {

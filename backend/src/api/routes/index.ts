@@ -13,6 +13,7 @@ import { reactionRoutes } from './reaction.js'
 import { channelViewsRoutes } from './channel-views.js'
 import { telegramMembersRoutes } from './telegram-members.js'
 import { chatgptRoutes } from './chatgpt.js'
+import { channelLockRoutes } from './channel-lock.js'
 import { orderRoutes } from './orders.js'
 import { kycRoutes } from './kyc.js'
 import { cardRoutes } from './cards.js'
@@ -44,5 +45,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(channelViewsRoutes, { prefix: '/api/channel-views' })
   await app.register(telegramMembersRoutes, { prefix: '/api/telegram-members' })
   await app.register(chatgptRoutes, { prefix: '/api/chatgpt' })
+  await app.register(channelLockRoutes, { prefix: '/api/channel-lock' })
   await app.register(orderRoutes, { prefix: '/api/orders' })
 }

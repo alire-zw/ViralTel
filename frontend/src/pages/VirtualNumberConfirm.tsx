@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { CountryFlagImg } from '../components/CountryFlagImg'
 import {
   ConfirmPaymentMethods,
   getConfirmPayableToman,
@@ -10,7 +11,7 @@ import { PageHeader } from '../components/PageHeader'
 import { useUser } from '../context/UserContext'
 import { useTelegram } from '../hooks/useTelegram'
 import { balanceToToman, isTelegramWebApp } from '../lib/api'
-import { getCountryFlagUrl } from '../lib/countryFlags'
+import { warmCountryFlagCache } from '../lib/countryFlagCache'
 import { getKycNextPath, isUserKycVerified } from '../lib/kyc'
 import { openPaymentUrl } from '../lib/payments'
 import {
@@ -108,6 +109,11 @@ export function VirtualNumberConfirmPage() {
       backButton.offClick(handleBack)
     }
   }, [handleBack])
+
+  useEffect(() => {
+    if (!isValidConfirmState(confirmState)) return
+    void warmCountryFlagCache([confirmState.flagCode])
+  }, [confirmState])
 
   const walletInsufficient = useMemo(() => {
     if (!isValidConfirmState(confirmState)) return false
@@ -236,13 +242,11 @@ export function VirtualNumberConfirmPage() {
           aria-label="کشور انتخاب‌شده"
         >
           <span className="virtual-number-confirm__country-start">
-            <img
-              src={getCountryFlagUrl(flagCode)}
-              alt=""
+            <CountryFlagImg
+              flagCode={flagCode}
               className="virtual-number-confirm__country-flag"
               width={24}
               height={18}
-              decoding="async"
             />
             <span className="virtual-number-confirm__country-name">{country}</span>
           </span>

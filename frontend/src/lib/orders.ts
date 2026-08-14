@@ -27,6 +27,7 @@ export interface ShopOrder {
     providerOrderId: string
     price: string
     code: string | null
+    loggedOutAt?: string | null
   } | null
   reactionOrder: {
     postLink: string
@@ -74,6 +75,57 @@ export interface ShopOrder {
   failedAt: string | null
 }
 
+export interface MyOrdersPayload {
+  version: string
+  cachedAt: string
+  items: ShopOrder[]
+}
+
+export interface MyOrdersSyncPayload extends MyOrdersPayload {
+  changed: boolean
+}
+
+const STORAGE_KEY = 'numberstar:my-orders:v1'
+
+export function readLocalMyOrders(): MyOrdersPayload | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as MyOrdersPayload
+    if (!parsed?.version || !Array.isArray(parsed.items)) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function writeLocalMyOrders(payload: MyOrdersPayload): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+}
+
 export function fetchOrder(orderId: string) {
   return apiFetch<{ order: ShopOrder }>(`/api/orders/${encodeURIComponent(orderId)}`)
+}
+
+export function fetchMyOrders() {
+  return apiFetch<MyOrdersPayload>('/api/orders/me')
+}
+
+export function syncMyOrders(version?: string) {
+  return apiFetch<MyOrdersSyncPayload>('/api/orders/me/sync', {
+    method: 'POST',
+    body: JSON.stringify(version ? { version } : {}),
+  })
+}
+
+export function isVirtualNumberOrder(order: ShopOrder): boolean {
+  return order.category.slug === 'virtual-number' || Boolean(order.virtualNumber)
+}
+
+export function filterShopOrders(orders: ShopOrder[]): ShopOrder[] {
+  return orders.filter((order) => !isVirtualNumberOrder(order))
+}
+
+export function filterVirtualNumberOrders(orders: ShopOrder[]): ShopOrder[] {
+  return orders.filter(isVirtualNumberOrder)
 }

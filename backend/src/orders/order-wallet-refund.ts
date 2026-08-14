@@ -1,5 +1,6 @@
 import { prisma } from '../db/client.js'
 import { invalidateWalletTransactionsCache } from '../wallet/wallet-transaction.service.js'
+import { invalidateUserOrdersCache } from './user-orders.cache.js'
 
 /** Mark order failed and refund mixed-gateway wallet portion (not pure wallet pays). */
 export async function failOrderAndRefundMixedWallet(orderDbId: number): Promise<void> {
@@ -24,5 +25,6 @@ export async function failOrderAndRefundMixedWallet(orderDbId: number): Promise<
 
   if (updated) {
     void invalidateWalletTransactionsCache(updated.userId)
+    void invalidateUserOrdersCache(updated.userId)
   }
 }

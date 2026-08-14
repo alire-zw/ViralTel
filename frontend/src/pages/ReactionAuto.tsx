@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmojiGlyph } from '../components/EmojiGlyph'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import Delete02Icon from '../components/icons/delete-02-stroke-rounded'
+import EditIcon from '../components/icons/EditIcon'
 import Link01Icon from '../components/icons/link-01-stroke-rounded'
+import LockIcon from '../components/icons/LockIcon'
+import TrashIcon from '../components/icons/TrashIcon'
+import { useUser } from '../context/UserContext'
 import { REACTION_SINGLE_EMOJIS } from '../data/reactionEmojis'
 import { useTelegram } from '../hooks/useTelegram'
 import { isTelegramWebApp } from '../lib/api'
+import {
+  readLocalAutoChannels,
+  writeLocalAutoChannels,
+} from '../lib/autoChannelsCache'
 import { formatTomanPrice } from '../lib/formatStars'
 import {
   configureAutoReactionChannel,
@@ -71,13 +81,16 @@ function openExternal(url: string) {
 
 export function ReactionAutoPage() {
   const navigate = useNavigate()
-  const { haptic } = useTelegram()
+  const { haptic, user: tgUser } = useTelegram()
+  const { user } = useUser()
+  const cacheUserKey = String(user?.id ?? tgUser?.id ?? 'anon')
 
   const [view, setView] = useState<ViewMode>('list')
   const [channels, setChannels] = useState<AutoReactionChannel[]>([])
   const [botUsername, setBotUsername] = useState('...')
   const [botDeepLink, setBotDeepLink] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [cacheReady, setCacheReady] = useState(false)
   const [postLink, setPostLink] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
   const [registerError, setRegisterError] = useState<string | null>(null)
@@ -119,9 +132,18 @@ export function ReactionAutoPage() {
 
   useEffect(() => {
     let cancelled = false
+    const cached = readLocalAutoChannels<AutoReactionChannel>('reaction', cacheUserKey)
+    if (cached) {
+      setChannels(cached.channels)
+      setBotUsername(cached.botUsername || '...')
+      setBotDeepLink(cached.botDeepLink)
+      setIsLoading(false)
+      setCacheReady(true)
+    } else {
+      setIsLoading(true)
+    }
 
     const boot = async () => {
-      setIsLoading(true)
       try {
         const [bot, channelResponse] = await Promise.all([
           fetchAutoReactionBotInfo(),
@@ -131,8 +153,15 @@ export function ReactionAutoPage() {
         setBotUsername(bot.username)
         setBotDeepLink(bot.deepLink)
         setChannels(channelResponse.channels)
+        writeLocalAutoChannels('reaction', cacheUserKey, {
+          channels: channelResponse.channels,
+          botUsername: bot.username,
+          botDeepLink: bot.deepLink,
+          cachedAt: new Date().toISOString(),
+        })
+        setCacheReady(true)
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !cached) {
           showNotification(
             error instanceof Error ? error.message : 'خطا در بارگذاری',
             'error',
@@ -147,7 +176,17 @@ export function ReactionAutoPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [cacheUserKey])
+
+  useEffect(() => {
+    if (!cacheReady) return
+    writeLocalAutoChannels('reaction', cacheUserKey, {
+      channels,
+      botUsername,
+      botDeepLink,
+      cachedAt: new Date().toISOString(),
+    })
+  }, [botDeepLink, botUsername, cacheReady, cacheUserKey, channels])
 
   useEffect(() => {
     if (!isTelegramWebApp()) return
@@ -429,24 +468,44 @@ export function ReactionAutoPage() {
 
         {view === 'list' ? (
           <>
-            {isLoading ? (
-              <div
-                className="reaction-auto__loading shop-rise"
-                style={{ '--rise-index': 2 } as CSSProperties}
-              >
-                در حال بارگذاری...
-              </div>
+            {isLoading && channels.length === 0 ? (
+              <>
+                <div
+                  className="reaction__section-head shop-rise"
+                  style={{ '--rise-index': 2 } as CSSProperties}
+                >
+                  <h2 className="reaction__section-title">کانال‌های شما</h2>
+                </div>
+                <section
+                  className="reaction-auto__list shop-rise"
+                  style={{ '--rise-index': 3 } as CSSProperties}
+                  aria-busy="true"
+                  aria-label="در حال بارگذاری کانال‌ها"
+                >
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={index}
+                      className="reaction-auto__row reaction-auto__row--skeleton"
+                    >
+                      <div className="reaction-auto__row-main">
+                        <span className="reaction-auto__skel reaction-auto__skel-title" />
+                        <span className="reaction-auto__skel reaction-auto__skel-meta" />
+                      </div>
+                      <div className="reaction-auto__row-actions">
+                        <span className="reaction-auto__skel reaction-auto__skel-btn" />
+                        <span className="reaction-auto__skel reaction-auto__skel-btn" />
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              </>
             ) : channels.length === 0 ? (
-              <section
-                className="reaction-auto__empty shop-rise"
+              <EmptyState
+                className="shop-rise"
                 style={{ '--rise-index': 2 } as CSSProperties}
-              >
-                <h2 className="reaction-auto__title">کانالی ثبت نشده است</h2>
-                <p className="reaction-auto__desc">
-                  ابتدا ربات را به‌عنوان ادمین کانال اضافه کنید؛ سپس با وارد کردن لینک یکی از
-                  پست‌های عمومی کانال، آن را ثبت نمایید.
-                </p>
-              </section>
+                title="کانالی ثبت نشده است"
+                description="ابتدا ربات را به‌عنوان ادمین کانال اضافه کنید؛ سپس با وارد کردن لینک یکی از پست‌های عمومی کانال، آن را ثبت نمایید."
+              />
             ) : (
               <>
                 <div
@@ -461,18 +520,31 @@ export function ReactionAutoPage() {
                   aria-label="کانال‌های ثبت‌شده"
                 >
                   {channels.map((channel) => (
-                    <article key={channel.id} className="reaction-auto__card">
+                    <article
+                      key={channel.id}
+                      className={`reaction-auto__row${channel.isActive ? '' : ' is-off'}`}
+                    >
                       <button
                         type="button"
-                        className="reaction-auto__card-main"
+                        className="reaction-auto__row-main"
                         onClick={() => openConfigure(channel)}
                       >
-                        <span className="reaction-auto__card-avatar" aria-hidden>
-                          {channel.title.charAt(0)}
+                        <span className="reaction-auto__row-avatar" aria-hidden>
+                          {channel.photoUrl ? (
+                            <img
+                              src={channel.photoUrl}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            channel.title.charAt(0)
+                          )}
                         </span>
-                        <span className="reaction-auto__card-meta">
-                          <span className="reaction-auto__card-title-row">
-                            <span className="reaction-auto__card-title">{channel.title}</span>
+                        <span className="reaction-auto__row-body">
+                          <span className="reaction-auto__row-title-line">
+                            <strong className="reaction-auto__row-title">{channel.title}</strong>
                             <span
                               className={`reaction-auto__badge${
                                 channel.isActive ? ' reaction-auto__badge--on' : ''
@@ -481,48 +553,52 @@ export function ReactionAutoPage() {
                               {channel.isActive ? 'فعال' : 'غیرفعال'}
                             </span>
                           </span>
-                          <span className="reaction-auto__card-username">
-                            @{channel.username}
+                          <span className="reaction-auto__row-meta">
+                            <span className="reaction-auto__row-username">@{channel.username}</span>
+                            {channel.reactions.length > 0 ? (
+                              <span className="reaction-auto__row-emojis" aria-hidden>
+                                {channel.reactions.slice(0, 4).map((item) => (
+                                  <span key={item.serviceId} className="reaction-auto__row-emoji">
+                                    <EmojiGlyph emoji={item.emoji} size={12} />
+                                  </span>
+                                ))}
+                                {channel.reactions.length > 4 ? (
+                                  <span className="reaction-auto__row-emoji-more">
+                                    +{(channel.reactions.length - 4).toLocaleString('fa-IR')}
+                                  </span>
+                                ) : null}
+                              </span>
+                            ) : null}
                           </span>
                         </span>
                       </button>
 
-                      {channel.reactions.length > 0 ? (
-                        <div className="reaction-auto__card-reactions" aria-hidden>
-                          {channel.reactions.slice(0, 8).map((item) => (
-                            <span key={item.serviceId} className="reaction-auto__mini-emoji">
-                              <span>{item.emoji}</span>
-                              <span className="reaction-auto__mini-count">
-                                {item.quantity.toLocaleString('fa-IR')}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-
-                      <div className="reaction-auto__card-actions">
+                      <div className="reaction-auto__row-actions">
                         <button
                           type="button"
-                          className="reaction-auto__card-action"
+                          className="reaction-auto__icon-btn"
+                          aria-label="تنظیم کانال"
                           onClick={() => openConfigure(channel)}
                         >
-                          تنظیم
+                          <EditIcon width={15} height={15} />
                         </button>
                         {channel.isActive ? (
                           <button
                             type="button"
-                            className="reaction-auto__card-action"
+                            className="reaction-auto__icon-btn is-pause"
+                            aria-label="توقف ری‌اکشن خودکار"
                             onClick={() => void handleDeactivate(channel)}
                           >
-                            توقف
+                            <LockIcon width={15} height={15} locked />
                           </button>
                         ) : null}
                         <button
                           type="button"
-                          className="reaction-auto__card-action reaction-auto__card-action--danger"
+                          className="reaction-auto__icon-btn is-danger"
+                          aria-label="حذف کانال"
                           onClick={() => void handleDelete(channel)}
                         >
-                          حذف
+                          <TrashIcon width={15} height={15} />
                         </button>
                       </div>
                     </article>
@@ -633,12 +709,22 @@ export function ReactionAutoPage() {
               className="reaction-auto__selected shop-rise"
               style={{ '--rise-index': 1 } as CSSProperties}
             >
-              <span className="reaction-auto__card-avatar" aria-hidden>
-                {selectedChannel.title.charAt(0)}
+              <span className="reaction-auto__row-avatar" aria-hidden>
+                {selectedChannel.photoUrl ? (
+                  <img
+                    src={selectedChannel.photoUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  selectedChannel.title.charAt(0)
+                )}
               </span>
-              <div className="reaction-auto__card-meta">
-                <span className="reaction-auto__card-title">{selectedChannel.title}</span>
-                <span className="reaction-auto__card-username" dir="ltr">
+              <div className="reaction-auto__row-body">
+                <strong className="reaction-auto__row-title">{selectedChannel.title}</strong>
+                <span className="reaction-auto__row-username" dir="ltr">
                   @{selectedChannel.username}
                 </span>
               </div>
@@ -679,7 +765,7 @@ export function ReactionAutoPage() {
                       aria-label={`${option.emoji}${isSelected ? `، ${count}` : ''}`}
                     >
                       <span className="reaction__emoji-glyph" aria-hidden>
-                        {option.emoji}
+                        <EmojiGlyph emoji={option.emoji} size={18} />
                       </span>
                       {isSelected ? (
                         <span className="reaction__emoji-count">

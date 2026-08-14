@@ -1,6 +1,7 @@
-const CACHE_VERSION = 'v4'
+const CACHE_VERSION = 'v5'
 const HERO_CACHE = `numberstar-shop-heroes-${CACHE_VERSION}`
 const FLAG_CACHE = `numberstar-country-flags-${CACHE_VERSION}`
+const EMOJI_CACHE = `numberstar-apple-emojis-${CACHE_VERSION}`
 
 const ASSETS = [
   '/shop-heroes/virtual-number/telephone-receiver-still.webp',
@@ -16,6 +17,8 @@ const ASSETS = [
 ]
 
 const FLAG_HOST = 'countryflagsapi.netlify.app'
+const EMOJI_HOST = 'cdn.jsdelivr.net'
+const EMOJI_PATH_PREFIX = '/npm/emoji-datasource-apple@16.0.0/img/apple/'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -33,9 +36,11 @@ self.addEventListener('activate', (event) => {
             .filter(
               (key) =>
                 (key.startsWith('numberstar-shop-heroes-') ||
-                  key.startsWith('numberstar-country-flags-')) &&
+                  key.startsWith('numberstar-country-flags-') ||
+                  key.startsWith('numberstar-apple-emojis-')) &&
                 key !== HERO_CACHE &&
-                key !== FLAG_CACHE,
+                key !== FLAG_CACHE &&
+                key !== EMOJI_CACHE,
             )
             .map((key) => caches.delete(key)),
         ),
@@ -69,5 +74,10 @@ self.addEventListener('fetch', (event) => {
 
   if (url.hostname === FLAG_HOST && url.pathname.startsWith('/flag/')) {
     event.respondWith(cacheFirst(request, FLAG_CACHE))
+    return
+  }
+
+  if (url.hostname === EMOJI_HOST && url.pathname.startsWith(EMOJI_PATH_PREFIX)) {
+    event.respondWith(cacheFirst(request, EMOJI_CACHE))
   }
 })

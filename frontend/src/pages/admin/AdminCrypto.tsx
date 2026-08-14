@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../../components/EmptyState'
 import { useAdminAccess } from '../../hooks/useAdminAccess'
 import { useTelegram } from '../../hooks/useTelegram'
 import { fetchAdminCryptoPayments, type AdminCryptoPaymentItem } from '../../lib/adminApi'
@@ -117,7 +118,7 @@ export function AdminCryptoPage() {
       {loading ? (
         <p className="admin__muted">در حال بارگذاری…</p>
       ) : items.length === 0 ? (
-        <p className="admin__muted">پرداختی پیدا نشد</p>
+        <EmptyState title="پرداختی پیدا نشد" />
       ) : (
         <ul className="admin__list">
           {items.map((payment) => (

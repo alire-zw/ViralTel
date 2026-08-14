@@ -44,7 +44,10 @@ export async function fetchContactPickerResult(
 
   if (!result.ok) {
     if (result.status === 404) return null
-    throw new Error(`Request failed (${result.status})`)
+    if (result.status === 429) {
+      throw new Error('تعداد درخواست‌ها بیش از حد مجاز است. لطفاً کمی بعد دوباره تلاش کنید.')
+    }
+    throw new Error('درخواست ناموفق بود. لطفاً دوباره تلاش کنید.')
   }
 
   return result.data

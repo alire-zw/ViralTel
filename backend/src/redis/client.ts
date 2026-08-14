@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis'
 import { env } from '../config/env.js'
-import { log } from '../lib/logger.js'
+import { formatError, log } from '../lib/logger.js'
 
 export const redis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: 3,
@@ -9,7 +9,7 @@ export const redis = new Redis(env.REDIS_URL, {
 })
 
 redis.on('error', (error: Error) => {
-  log.error('REDIS', error.message)
+  log.error('REDIS', formatError(error))
 })
 
 export async function connectRedis(): Promise<void> {

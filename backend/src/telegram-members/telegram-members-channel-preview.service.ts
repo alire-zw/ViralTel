@@ -1,3 +1,5 @@
+import { telegramWebFetch } from '../bot/telegram-api-access.js'
+
 export class TelegramMembersChannelPreviewError extends Error {
   readonly code: 'INVALID_LINK' | 'PRIVATE_CHANNEL' | 'NOT_FOUND' | 'FETCH_FAILED'
 
@@ -137,7 +139,7 @@ export async function fetchTelegramMembersChannelPreview(
 
   let response: Response
   try {
-    response = await fetch(parsed.canonicalUrl, {
+    response = await telegramWebFetch(parsed.canonicalUrl, {
       headers: {
         'User-Agent':
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',

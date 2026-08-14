@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { EmptyState } from '../components/EmptyState'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import Delete02Icon from '../components/icons/delete-02-stroke-rounded'
+import EditIcon from '../components/icons/EditIcon'
 import Link01Icon from '../components/icons/link-01-stroke-rounded'
+import LockIcon from '../components/icons/LockIcon'
+import TrashIcon from '../components/icons/TrashIcon'
 import ViewIcon from '../components/icons/ViewIcon'
+import { useUser } from '../context/UserContext'
 import { CHANNEL_VIEW_SERVICE } from '../data/channelViews'
 import { shopHeroPages } from '../data/shopHeroPages'
 import { useTelegram } from '../hooks/useTelegram'
 import { isTelegramWebApp } from '../lib/api'
+import {
+  readLocalAutoChannels,
+  writeLocalAutoChannels,
+} from '../lib/autoChannelsCache'
 import {
   configureAutoChannelViewChannel,
   deactivateAutoChannelViewChannel,
@@ -70,13 +79,16 @@ function openExternal(url: string) {
 
 export function ChannelViewsAutoPage() {
   const navigate = useNavigate()
-  const { haptic } = useTelegram()
+  const { haptic, user: tgUser } = useTelegram()
+  const { user } = useUser()
+  const cacheUserKey = String(user?.id ?? tgUser?.id ?? 'anon')
 
   const [view, setView] = useState<ViewMode>('list')
   const [channels, setChannels] = useState<AutoChannelViewChannel[]>([])
   const [botUsername, setBotUsername] = useState('...')
   const [botDeepLink, setBotDeepLink] = useState('')
   const [isLoading, setIsLoading] = useState(true)
+  const [cacheReady, setCacheReady] = useState(false)
   const [postLink, setPostLink] = useState('')
   const [isRegistering, setIsRegistering] = useState(false)
   const [registerError, setRegisterError] = useState<string | null>(null)
@@ -119,9 +131,21 @@ export function ChannelViewsAutoPage() {
 
   useEffect(() => {
     let cancelled = false
+    const cached = readLocalAutoChannels<AutoChannelViewChannel>(
+      'channel-views',
+      cacheUserKey,
+    )
+    if (cached) {
+      setChannels(cached.channels)
+      setBotUsername(cached.botUsername || '...')
+      setBotDeepLink(cached.botDeepLink)
+      setIsLoading(false)
+      setCacheReady(true)
+    } else {
+      setIsLoading(true)
+    }
 
     const boot = async () => {
-      setIsLoading(true)
       try {
         const [bot, channelResponse] = await Promise.all([
           fetchAutoChannelViewsBotInfo(),
@@ -131,8 +155,15 @@ export function ChannelViewsAutoPage() {
         setBotUsername(bot.username)
         setBotDeepLink(bot.deepLink)
         setChannels(channelResponse.channels)
+        writeLocalAutoChannels('channel-views', cacheUserKey, {
+          channels: channelResponse.channels,
+          botUsername: bot.username,
+          botDeepLink: bot.deepLink,
+          cachedAt: new Date().toISOString(),
+        })
+        setCacheReady(true)
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !cached) {
           showNotification(
             error instanceof Error ? error.message : 'خطا در بارگذاری',
             'error',
@@ -147,7 +178,17 @@ export function ChannelViewsAutoPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [cacheUserKey])
+
+  useEffect(() => {
+    if (!cacheReady) return
+    writeLocalAutoChannels('channel-views', cacheUserKey, {
+      channels,
+      botUsername,
+      botDeepLink,
+      cachedAt: new Date().toISOString(),
+    })
+  }, [botDeepLink, botUsername, cacheReady, cacheUserKey, channels])
 
   useEffect(() => {
     if (!isTelegramWebApp()) return
@@ -381,24 +422,44 @@ export function ChannelViewsAutoPage() {
 
         {view === 'list' ? (
           <>
-            {isLoading ? (
-              <div
-                className="channel-views-auto__loading shop-rise"
-                style={{ '--rise-index': 2 } as CSSProperties}
-              >
-                در حال بارگذاری...
-              </div>
+            {isLoading && channels.length === 0 ? (
+              <>
+                <div
+                  className="channel-views__section-head shop-rise"
+                  style={{ '--rise-index': 2 } as CSSProperties}
+                >
+                  <h2 className="channel-views__section-title">کانال‌های شما</h2>
+                </div>
+                <section
+                  className="channel-views-auto__list shop-rise"
+                  style={{ '--rise-index': 3 } as CSSProperties}
+                  aria-busy="true"
+                  aria-label="در حال بارگذاری کانال‌ها"
+                >
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={index}
+                      className="channel-views-auto__row channel-views-auto__row--skeleton"
+                    >
+                      <div className="channel-views-auto__row-main">
+                        <span className="channel-views-auto__skel channel-views-auto__skel-title" />
+                        <span className="channel-views-auto__skel channel-views-auto__skel-meta" />
+                      </div>
+                      <div className="channel-views-auto__row-actions">
+                        <span className="channel-views-auto__skel channel-views-auto__skel-btn" />
+                        <span className="channel-views-auto__skel channel-views-auto__skel-btn" />
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              </>
             ) : channels.length === 0 ? (
-              <section
-                className="channel-views-auto__empty shop-rise"
+              <EmptyState
+                className="shop-rise"
                 style={{ '--rise-index': 2 } as CSSProperties}
-              >
-                <h2 className="channel-views-auto__title">کانالی ثبت نشده است</h2>
-                <p className="channel-views-auto__desc">
-                  ابتدا ربات را به‌عنوان ادمین کانال اضافه کنید؛ سپس با وارد کردن لینک یکی از
-                  پست‌های عمومی کانال، آن را ثبت نمایید.
-                </p>
-              </section>
+                title="کانالی ثبت نشده است"
+                description="ابتدا ربات را به‌عنوان ادمین کانال اضافه کنید؛ سپس با وارد کردن لینک یکی از پست‌های عمومی کانال، آن را ثبت نمایید."
+              />
             ) : (
               <>
                 <div
@@ -413,18 +474,35 @@ export function ChannelViewsAutoPage() {
                   aria-label="کانال‌های ثبت‌شده"
                 >
                   {channels.map((channel) => (
-                    <article key={channel.id} className="channel-views-auto__card">
+                    <article
+                      key={channel.id}
+                      className={`channel-views-auto__row${
+                        channel.isActive ? '' : ' is-off'
+                      }`}
+                    >
                       <button
                         type="button"
-                        className="channel-views-auto__card-main"
+                        className="channel-views-auto__row-main"
                         onClick={() => openConfigure(channel)}
                       >
-                        <span className="channel-views-auto__card-avatar" aria-hidden>
-                          {channel.title.charAt(0)}
+                        <span className="channel-views-auto__row-avatar" aria-hidden>
+                          {channel.photoUrl ? (
+                            <img
+                              src={channel.photoUrl}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            channel.title.charAt(0)
+                          )}
                         </span>
-                        <span className="channel-views-auto__card-meta">
-                          <span className="channel-views-auto__card-title-row">
-                            <span className="channel-views-auto__card-title">{channel.title}</span>
+                        <span className="channel-views-auto__row-body">
+                          <span className="channel-views-auto__row-title-line">
+                            <strong className="channel-views-auto__row-title">
+                              {channel.title}
+                            </strong>
                             <span
                               className={`channel-views-auto__badge${
                                 channel.isActive ? ' channel-views-auto__badge--on' : ''
@@ -433,43 +511,45 @@ export function ChannelViewsAutoPage() {
                               {channel.isActive ? 'فعال' : 'غیرفعال'}
                             </span>
                           </span>
-                          <span className="channel-views-auto__card-username">
-                            @{channel.username}
+                          <span className="channel-views-auto__row-meta">
+                            <span className="channel-views-auto__row-username">
+                              @{channel.username}
+                            </span>
+                            {channel.quantity > 0 ? (
+                              <span className="channel-views-auto__row-chip">
+                                {channel.quantity.toLocaleString('fa-IR')} بازدید
+                              </span>
+                            ) : null}
                           </span>
                         </span>
                       </button>
 
-                      {channel.quantity > 0 ? (
-                        <div className="channel-views-auto__card-views" aria-hidden>
-                          <span className="channel-views-auto__mini-views">
-                            {channel.quantity.toLocaleString('fa-IR')} بازدید
-                          </span>
-                        </div>
-                      ) : null}
-
-                      <div className="channel-views-auto__card-actions">
+                      <div className="channel-views-auto__row-actions">
                         <button
                           type="button"
-                          className="channel-views-auto__card-action"
+                          className="channel-views-auto__icon-btn"
+                          aria-label="تنظیم کانال"
                           onClick={() => openConfigure(channel)}
                         >
-                          تنظیم
+                          <EditIcon width={15} height={15} />
                         </button>
                         {channel.isActive ? (
                           <button
                             type="button"
-                            className="channel-views-auto__card-action"
+                            className="channel-views-auto__icon-btn is-pause"
+                            aria-label="توقف سین خودکار"
                             onClick={() => void handleDeactivate(channel)}
                           >
-                            توقف
+                            <LockIcon width={15} height={15} locked />
                           </button>
                         ) : null}
                         <button
                           type="button"
-                          className="channel-views-auto__card-action channel-views-auto__card-action--danger"
+                          className="channel-views-auto__icon-btn is-danger"
+                          aria-label="حذف کانال"
                           onClick={() => void handleDelete(channel)}
                         >
-                          حذف
+                          <TrashIcon width={15} height={15} />
                         </button>
                       </div>
                     </article>
@@ -580,12 +660,22 @@ export function ChannelViewsAutoPage() {
               className="channel-views-auto__selected shop-rise"
               style={{ '--rise-index': 1 } as CSSProperties}
             >
-              <span className="channel-views-auto__card-avatar" aria-hidden>
-                {selectedChannel.title.charAt(0)}
+              <span className="channel-views-auto__row-avatar" aria-hidden>
+                {selectedChannel.photoUrl ? (
+                  <img
+                    src={selectedChannel.photoUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  selectedChannel.title.charAt(0)
+                )}
               </span>
-              <div className="channel-views-auto__card-meta">
-                <span className="channel-views-auto__card-title">{selectedChannel.title}</span>
-                <span className="channel-views-auto__card-username" dir="ltr">
+              <div className="channel-views-auto__row-body">
+                <strong className="channel-views-auto__row-title">{selectedChannel.title}</strong>
+                <span className="channel-views-auto__row-username" dir="ltr">
                   @{selectedChannel.username}
                 </span>
               </div>

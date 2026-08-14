@@ -63,6 +63,7 @@ export async function getAdminOverview() {
     latestOrders,
     weekCompletedOrders,
     monthCompletedOrders,
+    openTicketsCount,
   ] = await Promise.all([
     getOnlineStats(),
     listProductViewStats(),
@@ -120,6 +121,7 @@ export async function getAdminOverview() {
       where: { createdAt: { gte: monthStart }, status: 'completed' },
       select: { amountToman: true, createdAt: true },
     }),
+    prisma.supportTicket.count({ where: { status: 'open' } }),
   ])
 
   const categoryIds = [
@@ -201,6 +203,9 @@ export async function getAdminOverview() {
       kycPending: usersKycPending,
       newToday: usersNewToday,
       newWeek: usersNewWeek,
+    },
+    tickets: {
+      openCount: openTicketsCount,
     },
     totals: {
       orders: ordersTotal,

@@ -201,6 +201,15 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, #10b981 14%, transparent);
 }
 
+.virtual-number__country--unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.virtual-number__country--unavailable:active {
+  transform: none;
+}
+
 .virtual-number__country-start {
   display: inline-flex;
   align-items: center;
@@ -218,12 +227,21 @@
 }
 
 .virtual-number__country-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
+}
+
+.virtual-number__country-unavailable-tag {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--error, #ef4444);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .virtual-number__country-price {
