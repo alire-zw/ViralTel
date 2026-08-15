@@ -48,24 +48,17 @@ export function ShopHighlights({ riseIndex }: ShopHighlightsProps) {
       </div>
 
       <div className="shop-highlights__seals">
-        <a
-          className="shop-highlights__seal"
-          href="https://trustseal.enamad.ir/?id=7157797&Code=cAHnaMAfcQvwkgtfSi39ehxcq1x51T4L"
-          target="_blank"
-          rel="noopener noreferrer"
-          referrerPolicy="origin"
-          onClick={() => haptic('light')}
-        >
-          <img
-            className="shop-highlights__seal-img"
-            src="/trust/enamad.webp"
-            alt="نماد اعتماد الکترونیکی"
-            width={44}
-            height={44}
-            loading="lazy"
+        {/* Exact Enamad markup — no rel="noopener noreferrer" */}
+        <div className="shop-highlights__seal shop-highlights__seal--enamad">
+          <div
+            className="shop-highlights__enamad"
+            dangerouslySetInnerHTML={{
+              __html:
+                "<a referrerpolicy='origin' target='_blank' href='https://trustseal.enamad.ir/?id=769509&Code=cAHnaMAfcQvwkgtfSi39ehxcq1x51T4L'><img referrerpolicy='origin' src='https://trustseal.enamad.ir/logo.aspx?id=769509&Code=cAHnaMAfcQvwkgtfSi39ehxcq1x51T4L' alt='' style='cursor:pointer' code='cAHnaMAfcQvwkgtfSi39ehxcq1x51T4L'></a>",
+            }}
           />
           <span className="shop-highlights__seal-label">نماد اعتماد الکترونیکی</span>
-        </a>
+        </div>
 
         <div className="shop-highlights__seal shop-highlights__seal--empty">
           <span className="shop-highlights__seal-placeholder">
@@ -89,7 +82,7 @@ export function ShopHighlights({ riseIndex }: ShopHighlightsProps) {
         <span className="shop-highlights__support-copy">
           <span className="shop-highlights__support-title">سوالی دارید؟</span>
           <span className="shop-highlights__support-desc">
-            پشتیبانی ویرال‌تل هر روز هفته پاسخگوی شماست
+            پشتیبانی وایرال‌تل هر روز هفته پاسخگوی شماست
           </span>
         </span>
         <ArrowLeftIcon width={16} height={16} />

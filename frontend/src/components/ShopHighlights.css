@@ -98,6 +98,31 @@
   padding: 3px;
 }
 
+.shop-highlights__seal--enamad {
+  cursor: default;
+}
+
+.shop-highlights__enamad {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}
+
+.shop-highlights__enamad a {
+  display: inline-flex;
+  line-height: 0;
+}
+
+.shop-highlights__enamad img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 3px;
+}
+
 .shop-highlights__seal--empty {
   border-style: dashed;
   background: none;
