@@ -12,6 +12,15 @@ export type AdminUserSummary = {
   lastName: string | null
 }
 
+export type AdminProfitBucket = {
+  revenueToman: string
+  costToman: string
+  profitToman: string
+  orderCount: number
+  knownCostCount: number
+  unknownCostCount: number
+}
+
 export type AdminOverview = {
   online: {
     onlineCount: number
@@ -80,6 +89,34 @@ export type AdminOverview = {
   charts: {
     weekly: Array<{ day: string; amountToman: string; count: number }>
     monthly: Array<{ day: string; amountToman: string; count: number }>
+  }
+  profit?: {
+    today: AdminProfitBucket
+    week: AdminProfitBucket
+    month: AdminProfitBucket
+    byCategory: Array<
+      AdminProfitBucket & {
+        categoryId: number
+        slug: string
+        label: string
+      }
+    >
+    charts: {
+      weekly: Array<{
+        day: string
+        revenueToman: string
+        costToman: string
+        profitToman: string
+        count: number
+      }>
+      monthly: Array<{
+        day: string
+        revenueToman: string
+        costToman: string
+        profitToman: string
+        count: number
+      }>
+    }
   }
 }
 
@@ -712,4 +749,207 @@ export function updateAdminShopBanner(
 
 export function deleteAdminShopBanner(id: number) {
   return apiFetch<{ ok: boolean }>(`/api/admin/shop-banners/${id}`, { method: 'DELETE' })
+}
+
+export type AccountShopWarrantyType = 'none' | 'days' | 'full'
+export type AccountShopPricingMode = 'fixed' | 'variable'
+export type AccountShopNoticeKind = 'none' | 'info' | 'warning' | 'note'
+
+export type AdminAccountShopCustomField = {
+  id: string
+  label: string
+  placeholder: string
+  required: boolean
+}
+
+export type AdminAccountShopPlan = {
+  id: number
+  categoryId: string
+  name: string
+  durationLabel: string
+  warrantyType: AccountShopWarrantyType
+  warrantyDays: number | null
+  warrantyLabel: string
+  roboticvnProductId: string
+  roboticvnVariantId: string
+  roboticvnVariantTitle: string
+  pricingMode: AccountShopPricingMode
+  fixedToman: number | null
+  markupPercent: number
+  customFields: AdminAccountShopCustomField[]
+  noticeKind: AccountShopNoticeKind
+  noticeText: string | null
+  sortOrder: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type RoboticvnProductSummary = {
+  id: string
+  title: string
+}
+
+export type RoboticvnProductVariant = {
+  id: string
+  title: string
+  prices: Record<string, number>
+  in_stock: boolean
+  available_quantity: number
+}
+
+export type RoboticvnProductDetail = {
+  id: string
+  title: string
+  description: string | null
+  thumbnail: string | null
+  in_stock: boolean
+  variants: RoboticvnProductVariant[]
+}
+
+export type AdminAccountShopPlanInput = {
+  categoryId: string
+  name: string
+  durationLabel: string
+  warrantyType: AccountShopWarrantyType
+  warrantyDays?: number | null
+  roboticvnProductId: string
+  roboticvnVariantId: string
+  roboticvnVariantTitle: string
+  pricingMode: AccountShopPricingMode
+  fixedToman?: number | null
+  markupPercent?: number
+  customFields?: AdminAccountShopCustomField[]
+  noticeKind?: AccountShopNoticeKind
+  noticeText?: string | null
+  sortOrder?: number
+  isActive?: boolean
+}
+
+export function fetchAdminAccountPlans(categoryId?: string) {
+  const query = categoryId ? `?categoryId=${encodeURIComponent(categoryId)}` : ''
+  return apiFetch<{ items: AdminAccountShopPlan[] }>(`/api/admin/account-plans${query}`)
+}
+
+export function fetchAdminAccountPlan(id: number) {
+  return apiFetch<{ plan: AdminAccountShopPlan }>(`/api/admin/account-plans/${id}`)
+}
+
+export function createAdminAccountPlan(body: AdminAccountShopPlanInput) {
+  return apiFetch<{ plan: AdminAccountShopPlan }>('/api/admin/account-plans', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateAdminAccountPlan(
+  id: number,
+  body: Partial<AdminAccountShopPlanInput>,
+) {
+  return apiFetch<{ plan: AdminAccountShopPlan }>(`/api/admin/account-plans/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteAdminAccountPlan(id: number) {
+  return apiFetch<{ ok: boolean }>(`/api/admin/account-plans/${id}`, { method: 'DELETE' })
+}
+
+export type AdminAccountOrderFulfillmentStatus = 'registered' | 'processing' | 'delivered'
+
+export type AdminAccountOrderListItem = {
+  orderId: string
+  fulfillmentStatus: AdminAccountOrderFulfillmentStatus
+  orderStatus: string
+  paymentMethod: string
+  amountToman: string
+  walletAmountToman: string
+  gatewayAmountToman: string
+  planId: number
+  planName: string
+  accountCategoryId: string
+  durationLabel: string
+  warrantyLabel: string
+  fieldValues: Record<string, string>
+  customFields: Array<{ id: string; label: string }>
+  filledFields: Array<{ id: string; label: string; value: string }>
+  user: AdminUserSummary & {
+    role?: string
+    phoneNumber?: string | null
+  }
+  payment: {
+    orderId: string
+    trackId: string | null
+    refNumber: string | null
+    status: string
+    cardNumber: string | null
+  } | null
+  createdAt: string
+  updatedAt: string
+  deliveryNote: string | null
+  deliveredAt: string | null
+  fulfilledAt: string | null
+}
+
+export type AdminAccountOrdersResponse = {
+  items: AdminAccountOrderListItem[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export function fetchAdminAccountOrders(params: {
+  page?: number
+  limit?: number
+  status?: AdminAccountOrderFulfillmentStatus
+  search?: string
+}) {
+  const query = new URLSearchParams()
+  if (params.page) query.set('page', String(params.page))
+  if (params.limit) query.set('limit', String(params.limit))
+  if (params.status) query.set('status', params.status)
+  if (params.search?.trim()) query.set('search', params.search.trim())
+  return apiFetch<AdminAccountOrdersResponse>(`/api/admin/account-orders?${query.toString()}`)
+}
+
+export function fetchAdminAccountOrder(orderId: string) {
+  return apiFetch<{ order: AdminAccountOrderListItem }>(
+    `/api/admin/account-orders/${encodeURIComponent(orderId)}`,
+  )
+}
+
+export function updateAdminAccountOrderStatus(
+  orderId: string,
+  status: AdminAccountOrderFulfillmentStatus,
+  options?: { deliveryNote?: string },
+) {
+  return apiFetch<{ order: AdminAccountOrderListItem }>(
+    `/api/admin/account-orders/${encodeURIComponent(orderId)}/status`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        status,
+        ...(options?.deliveryNote !== undefined
+          ? { deliveryNote: options.deliveryNote }
+          : {}),
+      }),
+    },
+  )
+}
+
+export function fetchAdminRoboticvnProducts(search?: string) {
+  const params = new URLSearchParams()
+  params.set('limit', '50')
+  if (search?.trim()) params.set('search', search.trim())
+  return apiFetch<{ data: RoboticvnProductSummary[]; meta: { count: number } }>(
+    `/api/admin/roboticvn/products?${params.toString()}`,
+  )
+}
+
+export function fetchAdminRoboticvnProduct(productId: string) {
+  return apiFetch<{ data: RoboticvnProductDetail }>(
+    `/api/admin/roboticvn/products/${encodeURIComponent(productId)}`,
+  )
 }

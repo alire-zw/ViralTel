@@ -1,3 +1,4 @@
+import { ACCOUNT_SHOP_CATEGORIES } from '../../chatgpt/account-shop.catalog.js'
 import { getActiveAdminSystemChannel } from '../../admin/admin-system-channels.service.js'
 import { prisma } from '../../db/client.js'
 import { log } from '../../lib/logger.js'
@@ -8,6 +9,7 @@ import {
   buildAdminChannelOrderMessage,
   buildPurchaseChannelOrderMessage,
   formatOrderReportTime,
+  orderProductLabel,
   type OrderReportPayload,
 } from '../messages/order-report.js'
 
@@ -36,6 +38,8 @@ function buildQuantityLabel(order: {
   reactionTotal: number | null
   viewsQty: number | null
   membersQty: number | null
+  accountPlanName: string | null
+  accountDurationLabel: string | null
 }): string {
   switch (order.slug) {
     case 'telegram-stars':
@@ -50,11 +54,33 @@ function buildQuantityLabel(order: {
       return `${order.viewsQty ?? order.quantity ?? 0} Views`
     case 'telegram-members':
       return `${order.membersQty ?? order.quantity ?? 0} Members`
-    case 'chatgpt':
+    case 'chatgpt': {
+      const plan = order.accountPlanName?.trim()
+      const duration = order.accountDurationLabel?.trim()
+      if (plan && duration) return `${plan} · ${duration}`
+      if (plan) return plan
       return '1 Account'
+    }
     default:
       return order.quantity != null ? String(order.quantity) : '—'
   }
+}
+
+function buildProductLabel(order: {
+  slug: string
+  accountCategoryId: string | null
+  accountPlanName: string | null
+}): string {
+  if (order.slug === 'chatgpt') {
+    const category = ACCOUNT_SHOP_CATEGORIES.find((item) => item.id === order.accountCategoryId)
+    const plan = order.accountPlanName?.trim()
+    if (category && plan && plan !== category.labelFa) {
+      return `${category.labelFa} · ${plan}`
+    }
+    if (plan) return plan
+    if (category) return category.labelFa
+  }
+  return orderProductLabel(order.slug)
 }
 
 async function loadOrderReportPayload(orderId: string): Promise<OrderReportPayload | null> {
@@ -75,6 +101,7 @@ async function loadOrderReportPayload(orderId: string): Promise<OrderReportPaylo
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 
@@ -83,6 +110,11 @@ async function loadOrderReportPayload(orderId: string): Promise<OrderReportPaylo
   return {
     orderId: order.orderId,
     slug: order.category.slug,
+    productLabel: buildProductLabel({
+      slug: order.category.slug,
+      accountCategoryId: order.accountShopOrder?.accountCategoryId ?? null,
+      accountPlanName: order.accountShopOrder?.planName ?? null,
+    }),
     quantityLabel: buildQuantityLabel({
       slug: order.category.slug,
       quantity: order.quantity,
@@ -90,6 +122,8 @@ async function loadOrderReportPayload(orderId: string): Promise<OrderReportPaylo
       reactionTotal: order.quantity,
       viewsQty: order.channelViewOrder?.quantity ?? null,
       membersQty: order.telegramMemberOrder?.quantity ?? null,
+      accountPlanName: order.accountShopOrder?.planName ?? null,
+      accountDurationLabel: order.accountShopOrder?.durationLabel ?? null,
     }),
     priceToman: Number(order.amountToman),
     fulfilledAt: order.fulfilledAt ?? order.updatedAt ?? order.createdAt,

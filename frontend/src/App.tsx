@@ -58,6 +58,8 @@ import { TelegramMembersPaymentFailedPage } from './pages/TelegramMembersPayment
 import { ChatGPTPage } from './pages/ChatGPT'
 import { ChatGPTProductsPage } from './pages/ChatGPTProducts'
 import { ChatGPTConfirmPage } from './pages/ChatGPTConfirm'
+import { ChatGPTPaymentSuccessPage } from './pages/ChatGPTPaymentSuccess'
+import { ChatGPTPaymentFailedPage } from './pages/ChatGPTPaymentFailed'
 import { AdminPage } from './pages/Admin'
 import { AdminUsersPage } from './pages/admin/AdminUsers'
 import { AdminUserDetailPage } from './pages/admin/AdminUserDetail'
@@ -76,6 +78,11 @@ import { AdminTicketsPage } from './pages/admin/AdminTickets'
 import { AdminSystemChannelsPage } from './pages/admin/AdminSystemChannels'
 import { AdminShopBannersPage } from './pages/admin/AdminShopBanners'
 import { AdminShopBannerCreatePage } from './pages/admin/AdminShopBannerCreate'
+import { AdminAccountPlansPage } from './pages/admin/AdminAccountPlans'
+import { AdminAccountPlansCategoryPage } from './pages/admin/AdminAccountPlansCategory'
+import { AdminAccountPlansCreatePage } from './pages/admin/AdminAccountPlansCreate'
+import { AdminAccountOrdersPage } from './pages/admin/AdminAccountOrders'
+import { AdminAccountOrderDetailPage } from './pages/admin/AdminAccountOrderDetail'
 import { SupportPage } from './pages/Support'
 import { SupportNewPage } from './pages/SupportNew'
 import { SupportTicketPage } from './pages/SupportTicket'
@@ -206,6 +213,8 @@ function AppShell() {
             element={<TelegramMembersPaymentFailedPage />}
           />
           <Route path="/chatgpt" element={<ChatGPTPage />} />
+          <Route path="/chatgpt/payment/success" element={<ChatGPTPaymentSuccessPage />} />
+          <Route path="/chatgpt/payment/failed" element={<ChatGPTPaymentFailedPage />} />
           <Route path="/chatgpt/:categoryId/confirm" element={<ChatGPTConfirmPage />} />
           <Route path="/chatgpt/:categoryId" element={<ChatGPTProductsPage />} />
           <Route path="/dashboard" element={<HomePage />} />
@@ -229,6 +238,24 @@ function AppShell() {
           <Route path="/admin/system-channels" element={<AdminSystemChannelsPage />} />
           <Route path="/admin/shop-banners" element={<AdminShopBannersPage />} />
           <Route path="/admin/shop-banners/new" element={<AdminShopBannerCreatePage />} />
+          <Route path="/admin/account-plans" element={<AdminAccountPlansPage />} />
+          <Route path="/admin/account-orders" element={<AdminAccountOrdersPage />} />
+          <Route
+            path="/admin/account-orders/:orderId"
+            element={<AdminAccountOrderDetailPage />}
+          />
+          <Route
+            path="/admin/account-plans/:categoryId"
+            element={<AdminAccountPlansCategoryPage />}
+          />
+          <Route
+            path="/admin/account-plans/:categoryId/new"
+            element={<AdminAccountPlansCreatePage />}
+          />
+          <Route
+            path="/admin/account-plans/:categoryId/edit/:planId"
+            element={<AdminAccountPlansCreatePage />}
+          />
           <Route path="/admin/tools" element={<AdminToolsPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/support/new" element={<SupportNewPage />} />

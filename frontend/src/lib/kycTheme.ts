@@ -45,6 +45,12 @@ export const KYC_PRODUCT_THEMES: Record<KycProduct, KycThemeTokens> = {
     accentDeep: '#0088cc',
     accentText: '#0088cc',
   },
+  'account-shop': {
+    accent: '#10a37f',
+    accentSoft: '#34d399',
+    accentDeep: '#059669',
+    accentText: '#059669',
+  },
   'wallet-charge': {
     accent: '#6366f1',
     accentSoft: '#818cf8',

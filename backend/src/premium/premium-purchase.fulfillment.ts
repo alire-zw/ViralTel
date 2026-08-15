@@ -126,5 +126,12 @@ export async function fulfillShopOrder(orderId: string): Promise<boolean> {
     return fulfillTelegramMembersOrder(orderId)
   }
 
+  if (order.category.slug === 'chatgpt') {
+    const { fulfillAccountShopOrder } = await import(
+      '../chatgpt/account-shop-purchase.fulfillment.js'
+    )
+    return fulfillAccountShopOrder(orderId)
+  }
+
   return false
 }

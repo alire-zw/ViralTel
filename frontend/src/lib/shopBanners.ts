@@ -1,7 +1,7 @@
 import { apiFetch } from './api'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? ''
-const STORAGE_KEY = 'numberstar:shop-banners:v1'
+const STORAGE_KEY = 'viraltel:shop-banners:v1'
 
 export type ShopBannerItem = {
   id: number

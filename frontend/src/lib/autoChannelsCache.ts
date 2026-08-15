@@ -10,7 +10,7 @@ export type AutoChannelsCachePayload<T> = {
 const memoryCache = new Map<string, AutoChannelsCachePayload<unknown>>()
 
 function storageKey(kind: AutoChannelsKind, userKey: string): string {
-  return `numberstar:auto-channels:${kind}:v1:${userKey}`
+  return `viraltel:auto-channels:${kind}:v1:${userKey}`
 }
 
 function isValidPayload<T>(value: unknown): value is AutoChannelsCachePayload<T> {

@@ -25,7 +25,7 @@ export function WalletPaymentSuccessPage() {
   const [isPaymentLoading, setIsPaymentLoading] = useState(Boolean(orderId))
 
   const handleBack = useCallback(() => {
-    navigate('/wallet', { replace: true })
+    navigate('/', { replace: true })
   }, [navigate])
 
   useEffect(() => {
@@ -161,10 +161,10 @@ export function WalletPaymentSuccessPage() {
           className="wallet-payment-result__secondary"
           onClick={() => {
             haptic('light')
-            handleBack()
+            navigate('/dashboard', { replace: true })
           }}
         >
-          بازگشت به کیف پول
+          داشبورد
         </button>
       </footer>
     </div>

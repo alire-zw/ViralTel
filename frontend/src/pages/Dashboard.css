@@ -72,6 +72,23 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.dash__order-icon--image {
+  background: #000000;
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme='light'] .dash__order-icon--image {
+  background: #ffffff;
+}
+
+.dash__order-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .dash__order-copy {

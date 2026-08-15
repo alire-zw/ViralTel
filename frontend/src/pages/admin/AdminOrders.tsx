@@ -167,7 +167,11 @@ export function AdminOrdersPage() {
                 className="admin__row"
                 onClick={() => {
                   haptic('light')
-                  navigate(`/admin/orders/${encodeURIComponent(order.orderId)}`)
+                  navigate(
+                    order.category.slug === 'chatgpt'
+                      ? `/admin/account-orders/${encodeURIComponent(order.orderId)}`
+                      : `/admin/orders/${encodeURIComponent(order.orderId)}`,
+                  )
                 }}
               >
                 <div className="admin__row-top">

@@ -183,13 +183,16 @@ export function StarsKycReviewPage() {
   const handlePay = () => {
     if (!isValidKycResumeState(kycState) || !confirmState || !canPay) return
     haptic('light')
-    navigate(getKycConfirmPath(kycState.product), { replace: true, state: confirmState })
+    navigate(getKycConfirmPath(kycState.product, kycState), {
+      replace: true,
+      state: confirmState,
+    })
   }
 
   const handleEdit = () => {
     if (!isValidKycResumeState(kycState)) return
     haptic('light')
-    navigate(getKycCatalogPath(kycState.product), {
+    navigate(getKycCatalogPath(kycState.product, kycState), {
       replace: true,
       state: toKycEditRestoreState(kycState),
     })

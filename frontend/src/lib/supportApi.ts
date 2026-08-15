@@ -101,9 +101,9 @@ export const SUPPORT_CATEGORIES: Array<{
 ]
 
 const PERSIAN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹']
-const LIST_STORAGE_KEY = 'numberstar:support-tickets:v1'
-const DETAIL_STORAGE_PREFIX = 'numberstar:support-ticket:v1:'
-const CONTACT_STORAGE_KEY = 'numberstar:support-contact:v1'
+const LIST_STORAGE_KEY = 'viraltel:support-tickets:v1'
+const DETAIL_STORAGE_PREFIX = 'viraltel:support-ticket:v1:'
+const CONTACT_STORAGE_KEY = 'viraltel:support-contact:v1'
 
 export function toFaDigits(value: string | number): string {
   return String(value).replace(/\d/g, (digit) => PERSIAN_DIGITS[Number(digit)] ?? digit)

@@ -3,6 +3,7 @@ import type { OrderPaymentMethod, OrderStatus, Prisma } from '@prisma/client'
 import type { DbUser } from '../db/types.js'
 import { prisma } from '../db/client.js'
 import {
+  buildAccountShopOrderId,
   buildChannelViewsOrderId,
   buildPremiumOrderId,
   buildReactionOrderId,
@@ -86,6 +87,7 @@ export async function getOrderByOrderId(orderId: string, userId?: number) {
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 }
@@ -102,6 +104,7 @@ export async function listUserOrders(userId: number, limit = 20) {
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 }
@@ -115,6 +118,7 @@ export async function getOrderByPaymentId(paymentId: number) {
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 }
@@ -128,6 +132,7 @@ export async function getOrderByCryptoPaymentId(cryptoPaymentId: number) {
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 }
@@ -595,4 +600,85 @@ export async function createTelegramMembersOrderForUser(
   input: Omit<CreateTelegramMembersOrderInput, 'userId'>,
 ) {
   return createTelegramMembersOrder({ ...input, userId: user.id })
+}
+
+export interface CreateAccountShopOrderInput {
+  userId: number
+  paymentMethod: OrderPaymentMethod
+  amountToman: number
+  walletAmountToman?: number
+  planId: number
+  accountCategoryId: string
+  planName: string
+  durationLabel: string
+  warrantyLabel: string
+  fieldValues: Record<string, string>
+  customFields: Array<{
+    id: string
+    label: string
+    placeholder: string
+    required: boolean
+  }>
+  paymentId?: number
+}
+
+function createTemporaryAccountShopOrderId(userId: number): string {
+  const suffix = randomBytes(3).toString('hex')
+  return `TMP-AC-${userId}-${Date.now()}-${suffix}`
+}
+
+export async function createAccountShopOrder(input: CreateAccountShopOrderInput) {
+  const category = await prisma.shopCategory.findUnique({
+    where: { slug: 'chatgpt' },
+  })
+
+  if (!category) {
+    throw new Error('Shop category not found')
+  }
+
+  const order = await prisma.order.create({
+    data: {
+      orderId: createTemporaryAccountShopOrderId(input.userId),
+      userId: input.userId,
+      categoryId: category.id,
+      status: 'pending',
+      paymentMethod: input.paymentMethod,
+      amountToman: BigInt(input.amountToman),
+      walletAmountToman: BigInt(input.walletAmountToman ?? 0),
+      quantity: 1,
+      recipientName: input.planName.slice(0, 128),
+      paymentId: input.paymentId ?? null,
+      accountShopOrder: {
+        create: {
+          planId: input.planId,
+          accountCategoryId: input.accountCategoryId.slice(0, 32),
+          planName: input.planName.slice(0, 160),
+          durationLabel: input.durationLabel.slice(0, 96),
+          warrantyLabel: input.warrantyLabel.slice(0, 96),
+          fieldValuesJson: input.fieldValues,
+          customFieldsJson: input.customFields,
+          toman: input.amountToman,
+          status: 'registered',
+        },
+      },
+    },
+    include: { category: true, accountShopOrder: true },
+  })
+
+  const orderId = buildAccountShopOrderId(order.id)
+
+  const updated = await prisma.order.update({
+    where: { id: order.id },
+    data: { orderId },
+    include: { category: true, accountShopOrder: true },
+  })
+  invalidateOrderCaches(input.userId)
+  return updated
+}
+
+export async function createAccountShopOrderForUser(
+  user: DbUser,
+  input: Omit<CreateAccountShopOrderInput, 'userId'>,
+) {
+  return createAccountShopOrder({ ...input, userId: user.id })
 }

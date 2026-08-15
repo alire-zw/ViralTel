@@ -4,6 +4,7 @@ import { PageHeader } from '../components/PageHeader'
 import { EmptyState } from '../components/EmptyState'
 import ShopIcon from '../components/icons/ShopIcon'
 import { shopCategories } from '../data/shopCategories'
+import { ACCOUNT_SHOP_CATEGORY_OPTIONS } from '../data/accountShopCategories'
 import { useUser } from '../context/UserContext'
 import { useTelegram } from '../hooks/useTelegram'
 import { isTelegramWebApp } from '../lib/api'
@@ -16,9 +17,15 @@ import {
   type MyOrdersPayload,
   type ShopOrder,
 } from '../lib/orders'
-import { formatFaNumber, orderStatusLabel } from './admin/adminLabels'
+import { formatFaNumber, userOrderStatusLabel, userOrderStatusTone } from './admin/adminLabels'
 import '../styles/shop-rise.css'
 import './OrdersList.css'
+
+function accountShopCategoryMeta(order: ShopOrder) {
+  const categoryId = order.accountShopOrder?.accountCategoryId
+  if (!categoryId) return null
+  return ACCOUNT_SHOP_CATEGORY_OPTIONS.find((item) => item.id === categoryId) ?? null
+}
 
 function quantityLabel(order: ShopOrder): string {
   const qty = order.quantity
@@ -35,16 +42,11 @@ function quantityLabel(order: ShopOrder): string {
       return `${formatFaNumber(order.channelViewOrder?.quantity ?? qty ?? 0)} سین`
     case 'telegram-members':
       return `${formatFaNumber(order.telegramMemberOrder?.quantity ?? qty ?? 0)} ممبر`
+    case 'chatgpt':
+      return order.accountShopOrder?.planName ?? order.recipientName ?? order.category.label
     default:
       return order.category.label
   }
-}
-
-function statusTone(status: ShopOrder['status']): 'pending' | 'processing' | 'done' | 'failed' {
-  if (status === 'completed') return 'done'
-  if (status === 'failed' || status === 'cancelled') return 'failed'
-  if (status === 'processing') return 'processing'
-  return 'pending'
 }
 
 function formatFaDate(value: string): string {
@@ -185,8 +187,14 @@ export function OrdersListPage() {
         ) : (
           <div className="orders-list__panel shop-rise" style={{ '--rise-index': 1 } as CSSProperties}>
             {orders.map((order) => {
+              const accountCategory = accountShopCategoryMeta(order)
               const categoryMeta = shopCategories.find((item) => item.id === order.category.slug)
               const CategoryIcon = categoryMeta?.icon
+              const orderIconSrc = accountCategory?.stillImageSrc ?? accountCategory?.imageSrc ?? null
+              const orderTitle =
+                accountCategory?.label ??
+                order.accountShopOrder?.planName ??
+                order.category.label
               return (
                 <button
                   key={order.orderId}
@@ -198,10 +206,17 @@ export function OrdersListPage() {
                   }}
                 >
                   <span
-                    className="orders-list__card-icon"
-                    style={{ background: categoryMeta?.gradient ?? 'var(--surface-elevated)' }}
+                    className={`orders-list__card-icon${orderIconSrc ? ' orders-list__card-icon--image' : ''}`}
+                    style={{
+                      background:
+                        accountCategory?.gradient ??
+                        categoryMeta?.gradient ??
+                        'var(--surface-elevated)',
+                    }}
                   >
-                    {CategoryIcon ? (
+                    {orderIconSrc ? (
+                      <img src={orderIconSrc} alt="" width={32} height={32} />
+                    ) : CategoryIcon ? (
                       <CategoryIcon width={16} height={16} color={categoryMeta?.iconColor ?? '#fff'} />
                     ) : (
                       <ShopIcon width={16} height={16} color="#fff" />
@@ -209,9 +224,9 @@ export function OrdersListPage() {
                   </span>
                   <span className="orders-list__card-body">
                     <span className="orders-list__card-top">
-                      <span className="orders-list__card-title">{order.category.label}</span>
-                      <span className={`orders-list__badge orders-list__badge--${statusTone(order.status)}`}>
-                        {orderStatusLabel(order.status)}
+                      <span className="orders-list__card-title">{orderTitle}</span>
+                      <span className={`orders-list__badge orders-list__badge--${userOrderStatusTone(order)}`}>
+                        {userOrderStatusLabel(order)}
                       </span>
                     </span>
                     <span className="orders-list__card-meta">

@@ -348,7 +348,7 @@ export function ProfilePage() {
             <span className="profile__menu-icon">
               <SocialMediaIcon width={18} height={18} />
             </span>
-            <span>نامبراستار در شبکه های اجتماعی</span>
+            <span>وایرال‌تل در شبکه های اجتماعی</span>
           </span>
           <ArrowIcon />
         </button>
@@ -441,16 +441,16 @@ export function ProfilePage() {
       <BottomSheet
         isOpen={isSocialSheetOpen}
         onClose={() => setIsSocialSheetOpen(false)}
-        title="نامبراستار در شبکه های اجتماعی"
+        title="وایرال‌تل در شبکه های اجتماعی"
         options={[
           {
             value: 'channel',
-            label: 'کانال تلگرام نامبراستار',
+            label: 'کانال تلگرام وایرال‌تل',
             icon: <TelegramIcon width={18} height={18} color="#0088cc" />,
           },
           {
             value: 'bot',
-            label: 'ربات تلگرام نامبراستار',
+            label: 'ربات تلگرام وایرال‌تل',
             icon: <TelegramIcon width={18} height={18} color="#0088cc" />,
           },
         ]}
@@ -458,9 +458,9 @@ export function ProfilePage() {
         onSelect={(value) => {
           haptic('light')
           if (value === 'channel') {
-            window.open('https://t.me/numberstar', '_blank', 'noopener,noreferrer')
+            window.open('https://t.me/ViralTelShop', '_blank', 'noopener,noreferrer')
           } else if (value === 'bot') {
-            window.open('https://t.me/numberstarbot', '_blank', 'noopener,noreferrer')
+            window.open('https://t.me/viraltelbot', '_blank', 'noopener,noreferrer')
           }
         }}
       />

@@ -1,11 +1,11 @@
 {
-  "name": "numberstar-backend",
+  "name": "viraltel-backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "npm run db:generate && tsx watch src/index.ts",
-    "build": "prisma generate && tsc",
+    "build": "node scripts/build.mjs",
     "start": "node dist/index.js",
     "db:generate": "prisma generate",
     "db:migrate": "tsx src/scripts/run-prisma.ts migrate dev",

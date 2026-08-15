@@ -5,12 +5,19 @@ import {
   getConfirmPayableToman,
   getDefaultConfirmPaymentMethod,
 } from '../components/ConfirmPaymentMethods'
+import { AccountShopPlanStats } from '../components/AccountShopPlanStats'
 import { Notification } from '../components/Notification'
 import { PageHeader } from '../components/PageHeader'
 import { useUser } from '../context/UserContext'
 import { accountShopRoute } from '../data/accountShopProducts'
 import { useTelegram } from '../hooks/useTelegram'
 import { balanceToToman, isTelegramWebApp } from '../lib/api'
+import {
+  purchaseAccountShopWithGateway,
+  purchaseAccountShopWithWallet,
+} from '../lib/chatgpt'
+import { getKycNextPath, isUserKycVerified } from '../lib/kyc'
+import { openPaymentUrl } from '../lib/payments'
 import type {
   AccountShopConfirmState,
   AccountShopPaymentMethod,
@@ -23,13 +30,14 @@ function isValidConfirmState(state: AccountShopConfirmState | null): state is Ac
   if (!state?.product?.productId) return false
   if (!state.categoryId || !state.categoryLabel) return false
   if (!Number.isFinite(state.toman) || state.toman <= 0) return false
-  if (state.product.requiresCustomerEmail && !state.customerEmail) return false
-  if (
-    state.product.requiresSlotMonths &&
-    state.product.slotDurations.length > 0 &&
-    (state.slotMonths == null || !state.product.slotDurations.includes(state.slotMonths))
-  ) {
-    return false
+  if (!state.fieldValues || typeof state.fieldValues !== 'object') return false
+
+  const planId = state.product.planId ?? Number(state.product.productId)
+  if (!Number.isFinite(planId) || planId <= 0) return false
+
+  for (const field of state.product.customFields ?? []) {
+    if (!field.required) continue
+    if (!(state.fieldValues[field.id] ?? '').trim()) return false
   }
   return true
 }
@@ -37,7 +45,7 @@ function isValidConfirmState(state: AccountShopConfirmState | null): state is Ac
 export function ChatGPTConfirmPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useUser()
+  const { user, refetch } = useUser()
   const { haptic } = useTelegram()
   const confirmState = location.state as AccountShopConfirmState | null
   const balance = user ? balanceToToman(user.balance) : 0
@@ -49,6 +57,7 @@ export function ChatGPTConfirmPage() {
     ),
   )
   const [useWalletBalance, setUseWalletBalance] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [notification, setNotification] = useState<{
     show: boolean
     message: string
@@ -56,7 +65,7 @@ export function ChatGPTConfirmPage() {
   }>({
     show: false,
     message: '',
-    type: 'info',
+    type: 'error',
   })
 
   useEffect(() => {
@@ -76,8 +85,7 @@ export function ChatGPTConfirmPage() {
     const restore: AccountShopProductsRestoreState = {
       categoryId: confirmState.categoryId,
       productId: confirmState.product.productId,
-      customerEmail: confirmState.customerEmail ?? undefined,
-      slotMonths: confirmState.slotMonths,
+      fieldValues: confirmState.fieldValues,
     }
 
     navigate(accountShopRoute(confirmState.categoryId), { replace: true, state: restore })
@@ -112,27 +120,97 @@ export function ChatGPTConfirmPage() {
     return null
   }
 
-  const { product, categoryLabel, categoryImageSrc, customerEmail, slotMonths, toman } =
-    confirmState
+  const { product, categoryId, categoryLabel, categoryImageSrc, fieldValues, toman } = confirmState
+  const planId = product.planId ?? Number(product.productId)
   const payableToman = getConfirmPayableToman(method, toman, balance, useWalletBalance)
+  const filledFields = (product.customFields ?? []).filter(
+    (field) => (fieldValues[field.id] ?? '').trim().length > 0,
+  )
 
-  const handleContinue = () => {
+  const showNotification = (
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'error',
+  ) => {
+    setNotification({ show: true, message, type })
+  }
+
+  const handleContinue = async () => {
+    if (isSubmitting) return
+
     if (method === 'wallet' && walletInsufficient) {
-      setNotification({
-        show: true,
-        message: 'موجودی کیف پول کافی نیست',
-        type: 'warning',
-      })
+      showNotification('موجودی کیف پول کافی نیست', 'warning')
       return
     }
 
     haptic('light')
-    setNotification({
-      show: true,
-      message: 'پرداخت خرید اکانت به‌زودی فعال می‌شود',
-      type: 'info',
-    })
+
+    if (!isUserKycVerified(user)) {
+      const kycPath = getKycNextPath(user)
+      if (kycPath) {
+        navigate(kycPath, {
+          state: {
+            product: 'account-shop' as const,
+            categoryId: confirmState.categoryId,
+            categoryLabel: confirmState.categoryLabel,
+            categoryImageSrc: confirmState.categoryImageSrc,
+            plan: confirmState.product,
+            fieldValues: confirmState.fieldValues,
+            toman: confirmState.toman,
+            method,
+          },
+        })
+        return
+      }
+    }
+
+    setIsSubmitting(true)
+
+    const payload = {
+      planId,
+      categoryId,
+      toman,
+      fieldValues,
+    }
+
+    try {
+      if (method === 'wallet') {
+        const response = await purchaseAccountShopWithWallet(payload)
+        await refetch({ silent: true })
+        navigate(`/chatgpt/payment/success?orderId=${encodeURIComponent(response.orderId)}`, {
+          replace: true,
+        })
+        return
+      }
+
+      const response = await purchaseAccountShopWithGateway({
+        ...payload,
+        useWalletBalance: useWalletBalance && balance > 0 && balance < toman,
+      })
+
+      if (!response.paymentUrl) {
+        await refetch({ silent: true })
+        navigate(`/chatgpt/payment/success?orderId=${encodeURIComponent(response.orderId)}`, {
+          replace: true,
+        })
+        return
+      }
+
+      await refetch({ silent: true })
+      openPaymentUrl(response.paymentUrl)
+    } catch (error) {
+      showNotification(error instanceof Error ? error.message : 'خطا در ثبت خرید', 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
+  const continueDisabled = isSubmitting || (method === 'wallet' && walletInsufficient)
+
+  const continueLabel = isSubmitting
+    ? method === 'wallet'
+      ? 'در حال پردازش...'
+      : 'در حال انتقال به درگاه...'
+    : 'ادامه'
 
   return (
     <div className="account-shop-confirm">
@@ -169,11 +247,25 @@ export function ChatGPTConfirmPage() {
           </span>
           <div className="account-shop-confirm__product-meta">
             <span className="account-shop-confirm__product-name">{product.name}</span>
-            <span className="account-shop-confirm__product-sub">
-              {categoryLabel}
-              {slotMonths != null ? ` · ${slotMonths.toLocaleString('fa-IR')} ماه` : ''}
-              {customerEmail ? ` · ${customerEmail}` : ''}
-            </span>
+            <span className="account-shop-confirm__product-sub">{categoryLabel}</span>
+            <AccountShopPlanStats
+              toman={product.toman}
+              durationLabel={product.durationLabel}
+              warrantyLabel={product.warrantyLabel}
+              compact
+            />
+            {filledFields.length > 0 ? (
+              <div className="account-shop-confirm__fields" aria-label="اطلاعات سفارش">
+                {filledFields.map((field) => (
+                  <div key={field.id} className="account-shop-confirm__field-row">
+                    <span className="account-shop-confirm__field-label">{field.label}</span>
+                    <span className="account-shop-confirm__field-value" dir="auto">
+                      {fieldValues[field.id]}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -189,7 +281,6 @@ export function ChatGPTConfirmPage() {
               {payableToman.toLocaleString('fa-IR')}
             </span>
           </div>
-          <p className="account-shop-confirm__summary-note">{product.shortDesc}</p>
         </section>
 
         <h2
@@ -224,10 +315,12 @@ export function ChatGPTConfirmPage() {
         <button
           type="button"
           className="account-shop-confirm__continue"
-          disabled={method === 'wallet' && walletInsufficient}
-          onClick={handleContinue}
+          disabled={continueDisabled}
+          onClick={() => {
+            void handleContinue()
+          }}
         >
-          ادامه
+          {continueLabel}
         </button>
       </footer>
     </div>

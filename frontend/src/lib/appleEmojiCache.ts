@@ -2,7 +2,7 @@ import { appleEmojiPngUrl } from './appleEmoji'
 import appleReactionImages from '../data/appleReactionEmojiImages.json'
 import { REACTION_SINGLE_EMOJIS } from '../data/reactionEmojis'
 
-const DB_NAME = 'numberstar-apple-emojis'
+const DB_NAME = 'viraltel-apple-emojis'
 const STORE_NAME = 'emojis'
 const DB_VERSION = 1
 const MEMORY = new Map<string, string>()

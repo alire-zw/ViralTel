@@ -4,7 +4,7 @@ import { fetchOrder, type ShopOrder } from '../lib/orders'
 import { formatPaymentDate } from '../lib/paymentTransactions'
 import { lockAppScroll, unlockAppScroll } from '../lib/scrollLock'
 import { PREMIUM_PLAN_LABELS, type PremiumMonths } from '../types/premium'
-import type { WalletTransaction, WalletTransactionStatus } from '../types/wallet'
+import type { WalletTransaction } from '../types/wallet'
 import './TransactionDetailSheet.css'
 
 interface DetailRow {
@@ -19,14 +19,14 @@ interface StarsPurchaseDetails {
   quantity: number | null
 }
 
-function getStatusLabel(status: WalletTransactionStatus): string {
-  switch (status) {
+function getStatusLabel(transaction: WalletTransaction): string {
+  switch (transaction.status) {
     case 'success':
       return 'موفق'
     case 'failed':
       return 'ناموفق'
     case 'pending':
-      return 'در انتظار'
+      return transaction.type === 'purchase' ? 'در حال پردازش' : 'در انتظار پرداخت'
     default:
       return '—'
   }
@@ -125,7 +125,7 @@ function buildDetailRows(
   const rows: DetailRow[] = [
     {
       label: 'وضعیت',
-      value: getStatusLabel(transaction.status),
+      value: getStatusLabel(transaction),
       valueClassName: `transaction-detail__value--${transaction.status}`,
     },
     {

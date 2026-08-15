@@ -1,3 +1,4 @@
+import { accountShopConfirmRoute, accountShopRoute } from '../data/accountShopProducts'
 import type {
   KycConfirmState,
   KycProduct,
@@ -7,7 +8,7 @@ import type { PremiumMonths } from '../types/premium'
 
 const PREMIUM_MONTHS: PremiumMonths[] = [3, 6, 12]
 
-export function getKycCatalogPath(product: KycProduct): string {
+export function getKycCatalogPath(product: KycProduct, resume?: KycResumeState): string {
   switch (product) {
     case 'stars':
       return '/stars'
@@ -21,13 +22,22 @@ export function getKycCatalogPath(product: KycProduct): string {
       return '/channel-views'
     case 'telegram-members':
       return '/telegram-members'
+    case 'account-shop':
+      return resume?.product === 'account-shop'
+        ? accountShopRoute(resume.categoryId)
+        : '/chatgpt'
     case 'wallet-charge':
       return '/wallet/charge'
   }
 }
 
-export function getKycConfirmPath(product: KycProduct): string {
+export function getKycConfirmPath(product: KycProduct, resume?: KycResumeState): string {
   if (product === 'wallet-charge') return '/wallet/charge/payment'
+  if (product === 'account-shop') {
+    return resume?.product === 'account-shop'
+      ? accountShopConfirmRoute(resume.categoryId)
+      : '/chatgpt'
+  }
   return `${getKycCatalogPath(product)}/confirm`
 }
 
@@ -80,6 +90,17 @@ export function isValidKycResumeState(state: unknown): state is KycResumeState {
         Number.isFinite(value.quantity) &&
         (value.quantity as number) > 0
       )
+    }
+    case 'account-shop': {
+      const plan = value.plan as { productId?: string; customFields?: Array<{ id: string; required?: boolean }> } | null
+      const fieldValues = value.fieldValues as Record<string, string> | null
+      if (!plan?.productId || typeof value.categoryId !== 'string' || !value.categoryId) return false
+      if (!fieldValues || typeof fieldValues !== 'object') return false
+      for (const field of plan.customFields ?? []) {
+        if (!field.required) continue
+        if (!(fieldValues[field.id] ?? '').trim()) return false
+      }
+      return true
     }
     case 'wallet-charge':
       return (
@@ -139,6 +160,15 @@ export function toKycConfirmState(state: KycResumeState): KycConfirmState {
         quantity: state.quantity,
         toman: state.toman,
       }
+    case 'account-shop':
+      return {
+        categoryId: state.categoryId,
+        categoryLabel: state.categoryLabel,
+        categoryImageSrc: state.categoryImageSrc,
+        product: state.plan,
+        fieldValues: state.fieldValues,
+        toman: state.toman,
+      }
     case 'wallet-charge':
       return {
         amount: state.amount,
@@ -183,6 +213,12 @@ export function toKycEditRestoreState(state: KycResumeState): unknown {
         channel: state.channel,
         serviceId: state.service.serviceId,
         quantity: String(state.quantity),
+      }
+    case 'account-shop':
+      return {
+        categoryId: state.categoryId,
+        productId: state.plan.productId,
+        fieldValues: state.fieldValues,
       }
     case 'wallet-charge':
       return {

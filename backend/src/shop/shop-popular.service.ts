@@ -72,7 +72,10 @@ async function loadBestsellers(): Promise<ShopPopularItem[]> {
   const rows = await prisma.order.groupBy({
     by: ['categoryId'],
     where: {
-      status: 'completed',
+      OR: [
+        { status: 'completed' },
+        { status: 'processing', category: { slug: 'chatgpt' } },
+      ],
     },
     _count: { _all: true },
   })

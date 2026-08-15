@@ -58,7 +58,7 @@ export async function buildApp() {
       'retry-after': true,
     },
     redis: redis,
-    nameSpace: 'numberstar:rl:',
+    nameSpace: 'viraltel:rl:',
     continueExceeding: false,
     enableDraftSpec: true,
     errorResponseBuilder: (_request, context) => {

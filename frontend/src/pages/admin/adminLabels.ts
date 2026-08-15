@@ -1,47 +1,36 @@
+import {
+  formatJalaliDateLong,
+  formatJalaliDateTime,
+  formatJalaliDayOfMonth,
+} from '../../lib/jalaaliDate'
+
 export function formatFaNumber(value: number | string): string {
   const num = typeof value === 'string' ? Number(value) : value
   if (!Number.isFinite(num)) return '۰'
   return Math.floor(num).toLocaleString('fa-IR')
 }
 
+/** Gregorian day key or ISO → Jalali via jalaali-js (not Intl). */
 export function formatFaDate(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString('fa-IR', {
-    timeZone: 'Asia/Tehran',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return formatJalaliDateTime(iso)
 }
 
-/** e.g. ۲۸ فروردین ۱۴۰۵ */
+/** e.g. ۲۸ فروردین ۱۴۰۵ — always Jalali via jalaali-js */
 export function formatFaDateLong(iso: string | null | undefined): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('fa-IR', {
-    timeZone: 'Asia/Tehran',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return formatJalaliDateLong(iso)
 }
 
 export function formatFaDateTimeLong(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  const day = formatFaDateLong(iso)
-  const time = date.toLocaleTimeString('fa-IR', {
-    timeZone: 'Asia/Tehran',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-  return `${day} · ساعت ${time}`
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso.trim())) {
+    return formatJalaliDateLong(iso)
+  }
+  return formatJalaliDateTime(iso)
+}
+
+/** Chart axis day number in Jalali calendar. */
+export function formatFaChartDay(dayKey: string): string {
+  return formatFaNumber(formatJalaliDayOfMonth(dayKey))
 }
 
 export function orderStatusLabel(status: string): string {
@@ -59,6 +48,45 @@ export function orderStatusLabel(status: string): string {
     default:
       return status
   }
+}
+
+/** User-facing order badge for account shop based on fulfillment status. */
+export function userOrderStatusLabel(order: {
+  status: string
+  category: { slug: string }
+  accountShopOrder?: { status: 'registered' | 'processing' | 'delivered' } | null
+}): string {
+  if (order.category.slug === 'chatgpt') {
+    if (order.status === 'failed' || order.status === 'cancelled') {
+      return orderStatusLabel(order.status)
+    }
+    if (order.status === 'pending') return 'در انتظار'
+    const fulfillment = order.accountShopOrder?.status
+    if (fulfillment === 'processing') return 'در حال پردازش'
+    if (fulfillment === 'delivered' || order.status === 'completed') return 'تحویل شده'
+    // registered (paid, awaiting admin work)
+    return 'موفق'
+  }
+  return orderStatusLabel(order.status)
+}
+
+export function userOrderStatusTone(
+  order: {
+    status: string
+    category: { slug: string }
+    accountShopOrder?: { status: 'registered' | 'processing' | 'delivered' } | null
+  },
+): 'pending' | 'processing' | 'done' | 'failed' {
+  if (order.category.slug === 'chatgpt') {
+    if (order.status === 'failed' || order.status === 'cancelled') return 'failed'
+    if (order.status === 'pending') return 'pending'
+    if (order.accountShopOrder?.status === 'processing') return 'processing'
+    return 'done'
+  }
+  if (order.status === 'completed') return 'done'
+  if (order.status === 'failed' || order.status === 'cancelled') return 'failed'
+  if (order.status === 'processing') return 'processing'
+  return 'pending'
 }
 
 export function orderStatusBadgeClass(status: string): string {
@@ -177,6 +205,25 @@ export function ticketStatusLabel(status: string): string {
     default:
       return status
   }
+}
+
+export function accountShopFulfillmentLabel(status: string): string {
+  switch (status) {
+    case 'registered':
+      return 'تأیید شده'
+    case 'processing':
+      return 'در حال پردازش'
+    case 'delivered':
+      return 'تحویل شده'
+    default:
+      return status
+  }
+}
+
+export function accountShopFulfillmentBadgeClass(status: string): string {
+  if (status === 'delivered') return 'admin__badge admin__badge--success'
+  if (status === 'processing') return 'admin__badge admin__badge--warn'
+  return 'admin__badge'
 }
 
 export function clubRewardTypeLabel(type: string): string {

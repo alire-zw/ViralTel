@@ -1,10 +1,13 @@
 import type { ChannelViewsConfirmState } from './channelViews'
+import type { AccountShopCategoryId } from '../lib/chatgpt'
+import type { AccountShopProduct } from '../lib/chatgpt'
 import type { PremiumConfirmState } from './premium'
 import type { ReactionConfirmState } from './reaction'
 import type { StarsConfirmState, StarsPaymentMethod } from './stars'
 import type { TelegramMembersConfirmState } from './telegramMembers'
 import type { VirtualNumberConfirmState } from './virtualNumber'
 import type { WalletChargeAmountState } from './wallet'
+import type { AccountShopConfirmState } from './accountShop'
 
 export type KycPaymentMethod = StarsPaymentMethod
 
@@ -15,7 +18,17 @@ export type KycProduct =
   | 'reaction'
   | 'channel-views'
   | 'telegram-members'
+  | 'account-shop'
   | 'wallet-charge'
+
+export type AccountShopKycState = {
+  categoryId: AccountShopCategoryId
+  categoryLabel: string
+  categoryImageSrc: string | null
+  plan: AccountShopProduct
+  fieldValues: Record<string, string>
+  toman: number
+}
 
 export type KycProgressFields = {
   method: KycPaymentMethod
@@ -39,6 +52,7 @@ export type KycResumeState = KycProgressFields &
     | ({ product: 'reaction' } & ReactionConfirmState)
     | ({ product: 'channel-views' } & ChannelViewsConfirmState)
     | ({ product: 'telegram-members' } & TelegramMembersConfirmState)
+    | ({ product: 'account-shop' } & AccountShopKycState)
     | ({ product: 'wallet-charge' } & WalletChargeKycState)
   )
 
@@ -49,4 +63,5 @@ export type KycConfirmState =
   | ReactionConfirmState
   | ChannelViewsConfirmState
   | TelegramMembersConfirmState
+  | AccountShopConfirmState
   | WalletChargeAmountState

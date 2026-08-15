@@ -1,4 +1,4 @@
-import type { AccountShopCategoryId, AccountShopProduct } from '../lib/chatgpt'
+import type { AccountShopCategoryId, AccountShopCustomField, AccountShopProduct } from '../lib/chatgpt'
 
 export type AccountShopProductsState = {
   categoryId: AccountShopCategoryId
@@ -7,8 +7,7 @@ export type AccountShopProductsState = {
 export type AccountShopProductsRestoreState = {
   categoryId: AccountShopCategoryId
   productId?: string
-  customerEmail?: string
-  slotMonths?: number | null
+  fieldValues?: Record<string, string>
 }
 
 export type AccountShopConfirmState = {
@@ -16,9 +15,10 @@ export type AccountShopConfirmState = {
   categoryLabel: string
   categoryImageSrc: string | null
   product: AccountShopProduct
-  customerEmail: string | null
-  slotMonths: number | null
+  fieldValues: Record<string, string>
   toman: number
 }
 
 export type AccountShopPaymentMethod = 'wallet' | 'zibal'
+
+export type { AccountShopCustomField }

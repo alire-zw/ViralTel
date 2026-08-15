@@ -1,6 +1,6 @@
 import { resolveShopBannerImageUrl } from './shopBanners'
 
-const DB_NAME = 'numberstar-shop-banners'
+const DB_NAME = 'viraltel-shop-banners'
 const STORE_NAME = 'images'
 const DB_VERSION = 1
 const MEMORY = new Map<string, string>()

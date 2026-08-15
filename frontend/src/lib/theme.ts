@@ -1,6 +1,6 @@
 export type ThemeMode = 'auto' | 'light' | 'dark'
 
-const THEME_STORAGE_KEY = 'numberstar-theme'
+const THEME_STORAGE_KEY = 'viraltel-theme'
 
 export function getStoredThemeMode(): ThemeMode {
   const stored = localStorage.getItem(THEME_STORAGE_KEY)

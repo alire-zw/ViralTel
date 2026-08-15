@@ -7,7 +7,7 @@ import type { SerializedWalletTransaction } from './wallet-transaction.types.js'
 const LIST_LIMIT = 50
 
 type OrderWithCategory = Prisma.OrderGetPayload<{
-  include: { category: true }
+  include: { category: true; accountShopOrder: true }
 }>
 
 function formatFaDate(value: Date | string): string {
@@ -123,6 +123,7 @@ function buildOrderTitle(order: OrderWithCategory): string {
   const isReaction = order.category.slug === 'reaction'
   const isChannelViews = order.category.slug === 'channel-views'
   const isTelegramMembers = order.category.slug === 'telegram-members'
+  const isAccountShop = order.category.slug === 'chatgpt'
 
   if (isPremium) {
     if (order.status === 'failed' || order.status === 'cancelled') {
@@ -162,6 +163,19 @@ function buildOrderTitle(order: OrderWithCategory): string {
       return 'خرید در انتظار · ممبر تلگرام'
     }
     return 'خرید موفق ممبر تلگرام'
+  }
+
+  if (isAccountShop) {
+    if (order.status === 'failed' || order.status === 'cancelled') {
+      return 'خرید ناموفق اکانت'
+    }
+    if (order.status === 'pending') {
+      return 'سفارش در انتظار پرداخت'
+    }
+    if (order.accountShopOrder?.status === 'processing') {
+      return 'در حال پردازش · اکانت'
+    }
+    return 'خرید موفق اکانت'
   }
 
   if (!isStars) {
@@ -209,8 +223,16 @@ function orderToTransaction(order: OrderWithCategory): SerializedWalletTransacti
     gatewayAmountToman,
   }
 
+  const isAccountShop = order.category.slug === 'chatgpt'
+  const accountFulfillment = order.accountShopOrder?.status
+  // Paid + registered/delivered → success; admin "processing" → pending badge
+  const isAccountShopPaidSuccess =
+    isAccountShop &&
+    (order.status === 'processing' || order.status === 'completed') &&
+    accountFulfillment !== 'processing'
+
   const status =
-    order.status === 'completed'
+    order.status === 'completed' || isAccountShopPaidSuccess
       ? 'success'
       : order.status === 'failed' || order.status === 'cancelled'
         ? 'failed'
@@ -229,7 +251,7 @@ function orderToTransaction(order: OrderWithCategory): SerializedWalletTransacti
 }
 
 export async function buildTransactionFingerprint(userId: number): Promise<string> {
-  const [payments, crypto, orders, sent, received] = await Promise.all([
+  const [payments, crypto, orders, accountShop, sent, received] = await Promise.all([
     prisma.payment.aggregate({
       where: { userId },
       _max: { id: true, updatedAt: true },
@@ -245,6 +267,11 @@ export async function buildTransactionFingerprint(userId: number): Promise<strin
       _max: { id: true, updatedAt: true },
       _count: true,
     }),
+    prisma.accountShopOrder.aggregate({
+      where: { order: { userId } },
+      _max: { id: true, updatedAt: true },
+      _count: true,
+    }),
     prisma.transfer.aggregate({
       where: { senderId: userId },
       _max: { id: true, createdAt: true },
@@ -257,7 +284,7 @@ export async function buildTransactionFingerprint(userId: number): Promise<strin
     }),
   ])
 
-  return JSON.stringify({ payments, crypto, orders, sent, received })
+  return JSON.stringify({ payments, crypto, orders, accountShop, sent, received })
 }
 
 export async function buildTransactionVersion(userId: number): Promise<string> {
@@ -281,7 +308,7 @@ export async function buildWalletTransactions(userId: number): Promise<Serialize
       where: { userId },
       orderBy: { id: 'desc' },
       take: LIST_LIMIT,
-      include: { category: true },
+      include: { category: true, accountShopOrder: true },
     }),
     prisma.transfer.findMany({
       where: { senderId: userId },

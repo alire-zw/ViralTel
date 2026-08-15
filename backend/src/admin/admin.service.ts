@@ -10,6 +10,31 @@ import type {
   ListAdminPaymentsQuery,
   ListAdminTransfersQuery,
 } from './admin.schema.js'
+import {
+  addOrderToProfitBucket,
+  emptyProfitBucket,
+  estimateOrderCostToman,
+  serializeProfitBucket,
+  type ProfitBucket,
+} from './admin-profit.js'
+
+/** Paid revenue: completed orders + paid account-shop orders still in fulfillment. */
+const paidSalesWhere: Prisma.OrderWhereInput = {
+  OR: [
+    { status: 'completed' },
+    { status: 'processing', category: { slug: 'chatgpt' } },
+  ],
+}
+
+function pendingOrdersWhere(extra: Prisma.OrderWhereInput = {}): Prisma.OrderWhereInput {
+  return {
+    ...extra,
+    OR: [
+      { status: 'pending' },
+      { status: 'processing', NOT: { category: { slug: 'chatgpt' } } },
+    ],
+  }
+}
 
 function getTehranDayStart(date = new Date()): Date {
   const day = new Intl.DateTimeFormat('en-CA', {
@@ -63,29 +88,32 @@ export async function getAdminOverview() {
     latestOrders,
     weekCompletedOrders,
     monthCompletedOrders,
+    profitOrders,
+    pricingRules,
+    accountPlans,
     openTicketsCount,
   ] = await Promise.all([
     getOnlineStats(),
     listProductViewStats(),
     prisma.order.count({ where: { createdAt: { gte: dayStart } } }),
     prisma.order.aggregate({
-      where: { createdAt: { gte: dayStart }, status: 'completed' },
+      where: { createdAt: { gte: dayStart }, ...paidSalesWhere },
       _sum: { amountToman: true },
       _count: true,
     }),
     prisma.order.count({ where: { createdAt: { gte: dayStart }, status: 'failed' } }),
     prisma.order.count({
-      where: { createdAt: { gte: dayStart }, status: { in: ['pending', 'processing'] } },
+      where: pendingOrdersWhere({ createdAt: { gte: dayStart } }),
     }),
     prisma.order.groupBy({
       by: ['categoryId'],
-      where: { createdAt: { gte: dayStart }, status: 'completed' },
+      where: { createdAt: { gte: dayStart }, ...paidSalesWhere },
       _sum: { amountToman: true },
       _count: true,
     }),
     prisma.order.groupBy({
       by: ['categoryId'],
-      where: { status: 'completed' },
+      where: paidSalesWhere,
       _sum: { amountToman: true },
       _count: true,
     }),
@@ -96,7 +124,7 @@ export async function getAdminOverview() {
     prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
     prisma.transfer.count({ where: { createdAt: { gte: dayStart } } }),
     prisma.order.count(),
-    prisma.order.count({ where: { status: 'completed' } }),
+    prisma.order.count({ where: paidSalesWhere }),
     prisma.order.findMany({
       take: 8,
       orderBy: { createdAt: 'desc' },
@@ -114,12 +142,36 @@ export async function getAdminOverview() {
       },
     }),
     prisma.order.findMany({
-      where: { createdAt: { gte: weekStart }, status: 'completed' },
+      where: { createdAt: { gte: weekStart }, ...paidSalesWhere },
       select: { amountToman: true, createdAt: true },
     }),
     prisma.order.findMany({
-      where: { createdAt: { gte: monthStart }, status: 'completed' },
+      where: { createdAt: { gte: monthStart }, ...paidSalesWhere },
       select: { amountToman: true, createdAt: true },
+    }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: monthStart }, ...paidSalesWhere },
+      select: {
+        amountToman: true,
+        createdAt: true,
+        category: { select: { id: true, slug: true, label: true } },
+        virtualNumber: { select: { price: true } },
+        reactionOrder: { select: { itemsJson: true } },
+        channelViewOrder: { select: { quantity: true, rate: true } },
+        telegramMemberOrder: { select: { quantity: true, rate: true } },
+        accountShopOrder: { select: { planId: true } },
+      },
+    }),
+    prisma.productPricing.findMany({
+      select: {
+        productKey: true,
+        markupPercent: true,
+        fixedAddToman: true,
+        isActive: true,
+      },
+    }),
+    prisma.accountShopPlan.findMany({
+      select: { id: true, pricingMode: true, markupPercent: true },
     }),
     prisma.supportTicket.count({ where: { status: 'open' } }),
   ])
@@ -152,6 +204,14 @@ export async function getAdminOverview() {
       })
       .sort((a, b) => Number(b.amountToman) - Number(a.amountToman))
 
+  const tehranDayKey = (date: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tehran',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date)
+
   const buildSeries = (
     orders: Array<{ amountToman: bigint; createdAt: Date }>,
     days: number,
@@ -159,23 +219,12 @@ export async function getAdminOverview() {
   ) => {
     const buckets = Array.from({ length: days }, (_, index) => {
       const date = new Date(start.getTime() + index * 24 * 60 * 60 * 1000)
-      const key = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Tehran',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(date)
-      return { day: key, amountToman: 0, count: 0 }
+      return { day: tehranDayKey(date), amountToman: 0, count: 0 }
     })
     const indexByDay = new Map(buckets.map((bucket, index) => [bucket.day, index]))
 
     for (const order of orders) {
-      const key = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Tehran',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(order.createdAt)
+      const key = tehranDayKey(order.createdAt)
       const index = indexByDay.get(key)
       if (index === undefined) continue
       const bucket = buckets[index]
@@ -188,6 +237,105 @@ export async function getAdminOverview() {
       day: bucket.day,
       amountToman: String(bucket.amountToman),
       count: bucket.count,
+    }))
+  }
+
+  const pricingByKey = new Map(
+    pricingRules.map((row) => [
+      row.productKey,
+      {
+        markupPercent: row.markupPercent,
+        fixedAddToman: Number(row.fixedAddToman),
+        isActive: row.isActive,
+      },
+    ]),
+  )
+  const planById = new Map(
+    accountPlans.map((row) => [
+      row.id,
+      { pricingMode: row.pricingMode, markupPercent: row.markupPercent },
+    ]),
+  )
+
+  const todayProfit = emptyProfitBucket()
+  const weekProfit = emptyProfitBucket()
+  const monthProfit = emptyProfitBucket()
+  const byCategory = new Map<
+    string,
+    ProfitBucket & { slug: string; label: string; categoryId: number }
+  >()
+  const profitDayBuckets = Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(monthStart.getTime() + index * 24 * 60 * 60 * 1000)
+    return {
+      day: tehranDayKey(date),
+      ...emptyProfitBucket(),
+    }
+  })
+  const profitDayIndex = new Map(profitDayBuckets.map((bucket, index) => [bucket.day, index]))
+
+  for (const order of profitOrders) {
+    const revenue = Number(order.amountToman)
+    const slug = order.category.slug
+    const planId = order.accountShopOrder?.planId
+    const cost = estimateOrderCostToman({
+      slug,
+      amountToman: revenue,
+      virtualNumberPrice: order.virtualNumber ? Number(order.virtualNumber.price) : null,
+      reactionItemsJson: order.reactionOrder?.itemsJson,
+      channelView: order.channelViewOrder
+        ? {
+            quantity: order.channelViewOrder.quantity,
+            rate: order.channelViewOrder.rate,
+          }
+        : null,
+      telegramMember: order.telegramMemberOrder
+        ? {
+            quantity: order.telegramMemberOrder.quantity,
+            rate: order.telegramMemberOrder.rate,
+          }
+        : null,
+      accountPlan: planId != null ? (planById.get(planId) ?? null) : null,
+      pricingRule: pricingByKey.get(slug) ?? null,
+    })
+
+    addOrderToProfitBucket(monthProfit, revenue, cost)
+    if (order.createdAt >= weekStart) {
+      addOrderToProfitBucket(weekProfit, revenue, cost)
+    }
+    if (order.createdAt >= dayStart) {
+      addOrderToProfitBucket(todayProfit, revenue, cost)
+    }
+
+    const catKey = slug
+    let cat = byCategory.get(catKey)
+    if (!cat) {
+      cat = {
+        slug,
+        label: order.category.label,
+        categoryId: order.category.id,
+        ...emptyProfitBucket(),
+      }
+      byCategory.set(catKey, cat)
+    }
+    addOrderToProfitBucket(cat, revenue, cost)
+
+    const dayKey = tehranDayKey(order.createdAt)
+    const dayIdx = profitDayIndex.get(dayKey)
+    if (dayIdx !== undefined) {
+      const dayBucket = profitDayBuckets[dayIdx]
+      if (dayBucket) addOrderToProfitBucket(dayBucket, revenue, cost)
+    }
+  }
+
+  const serializeProfitSeries = (days: number, start: Date) => {
+    const startKey = tehranDayKey(start)
+    const startIdx = profitDayIndex.get(startKey) ?? Math.max(0, 30 - days)
+    return profitDayBuckets.slice(startIdx, startIdx + days).map((bucket) => ({
+      day: bucket.day,
+      revenueToman: String(Math.round(bucket.revenueToman)),
+      costToman: String(Math.round(bucket.costToman)),
+      profitToman: String(Math.round(bucket.profitToman)),
+      count: bucket.orderCount,
     }))
   }
 
@@ -234,6 +382,23 @@ export async function getAdminOverview() {
     charts: {
       weekly: buildSeries(weekCompletedOrders, 7, weekStart),
       monthly: buildSeries(monthCompletedOrders, 30, monthStart),
+    },
+    profit: {
+      today: serializeProfitBucket(todayProfit),
+      week: serializeProfitBucket(weekProfit),
+      month: serializeProfitBucket(monthProfit),
+      byCategory: [...byCategory.values()]
+        .map((row) => ({
+          categoryId: row.categoryId,
+          slug: row.slug,
+          label: row.label,
+          ...serializeProfitBucket(row),
+        }))
+        .sort((a, b) => Number(b.profitToman) - Number(a.profitToman)),
+      charts: {
+        weekly: serializeProfitSeries(7, weekStart),
+        monthly: serializeProfitSeries(30, monthStart),
+      },
     },
   }
 }
@@ -347,6 +512,7 @@ export async function getAdminOrderByOrderId(orderId: string) {
       reactionOrder: true,
       channelViewOrder: true,
       telegramMemberOrder: true,
+      accountShopOrder: true,
     },
   })
 

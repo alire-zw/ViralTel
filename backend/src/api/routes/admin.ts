@@ -56,6 +56,32 @@ import {
   updateShopBanner,
 } from '../../admin/admin-shop-banners.service.js'
 import {
+  createAccountShopPlanSchema,
+  listAccountShopPlansQuerySchema,
+  roboticvnProductsQuerySchema,
+  updateAccountShopPlanSchema,
+} from '../../admin/admin-account-plans.schema.js'
+import {
+  createAccountShopPlan,
+  deleteAccountShopPlan,
+  getAccountShopPlanAdmin,
+  getRoboticvnProductForAdmin,
+  listAccountShopPlansAdmin,
+  searchRoboticvnProductsForAdmin,
+  updateAccountShopPlan,
+} from '../../admin/admin-account-plans.service.js'
+import {
+  listAdminAccountOrdersQuerySchema,
+  updateAdminAccountOrderStatusBodySchema,
+} from '../../admin/admin-account-orders.schema.js'
+import {
+  AccountShopPurchaseError,
+  getAdminAccountOrderByOrderId,
+  listAdminAccountOrders,
+  updateAdminAccountOrderStatus,
+} from '../../admin/admin-account-orders.service.js'
+import { RoboticvnApiError } from '../../roboticvn/roboticvn.client.js'
+import {
   AdminSystemChannelError,
   deactivateAdminSystemChannel,
   deleteAdminSystemChannel,
@@ -101,6 +127,29 @@ function handleRouteError(error: unknown, reply: FastifyReply, scope: string): v
       error: 'AdminSystemChannelError',
       message: error.message,
       code: error.code,
+    })
+    return
+  }
+
+  if (error instanceof AccountShopPurchaseError) {
+    const status =
+      error.code === 'ORDER_NOT_FOUND'
+        ? 404
+        : error.code === 'INVALID_STATUS'
+          ? 409
+          : 400
+    reply.code(status).send({
+      error: 'AccountShopPurchaseError',
+      message: error.message,
+      code: error.code,
+    })
+    return
+  }
+
+  if (error instanceof RoboticvnApiError) {
+    reply.code(error.status >= 400 && error.status < 600 ? error.status : 502).send({
+      error: 'RoboticvnApiError',
+      message: error.message,
     })
     return
   }
@@ -471,6 +520,149 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         return
       }
       reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/account-orders', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      reply.send(
+        await listAdminAccountOrders(parseQuery(listAdminAccountOrdersQuerySchema, request.query)),
+      )
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get(
+    '/account-orders/:orderId',
+    { preHandler: mainAdminChain },
+    async (request: FastifyRequest, reply) => {
+      try {
+        const orderId = (request.params as { orderId?: string }).orderId?.trim()
+        if (!orderId) {
+          reply.code(400).send({ error: 'BadRequest', message: 'Invalid order id' })
+          return
+        }
+        const result = await getAdminAccountOrderByOrderId(orderId)
+        if (!result) {
+          reply.code(404).send({ error: 'NotFound', message: 'Account order not found' })
+          return
+        }
+        reply.send(result)
+      } catch (error) {
+        handleRouteError(error, reply, 'ADMIN')
+      }
+    },
+  )
+
+  app.patch(
+    '/account-orders/:orderId/status',
+    { preHandler: mainAdminChain },
+    async (request: FastifyRequest, reply) => {
+      try {
+        const orderId = (request.params as { orderId?: string }).orderId?.trim()
+        if (!orderId) {
+          reply.code(400).send({ error: 'BadRequest', message: 'Invalid order id' })
+          return
+        }
+        const body = updateAdminAccountOrderStatusBodySchema.parse(request.body)
+        reply.send(await updateAdminAccountOrderStatus(orderId, body))
+      } catch (error) {
+        handleRouteError(error, reply, 'ADMIN')
+      }
+    },
+  )
+
+  app.get('/account-plans', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const query = parseQuery(listAccountShopPlansQuerySchema, request.query)
+      reply.send(await listAccountShopPlansAdmin(query.categoryId))
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/account-plans/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = Number((request.params as { id?: string }).id)
+      if (!Number.isFinite(id)) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      const result = await getAccountShopPlanAdmin(id)
+      if (!result) {
+        reply.code(404).send({ error: 'NotFound', message: 'Plan not found' })
+        return
+      }
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.post('/account-plans', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      reply.code(201).send(await createAccountShopPlan(createAccountShopPlanSchema.parse(request.body)))
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.patch('/account-plans/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = Number((request.params as { id?: string }).id)
+      if (!Number.isFinite(id)) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      const result = await updateAccountShopPlan(id, updateAccountShopPlanSchema.parse(request.body))
+      if (!result) {
+        reply.code(404).send({ error: 'NotFound', message: 'Plan not found' })
+        return
+      }
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.delete('/account-plans/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = Number((request.params as { id?: string }).id)
+      if (!Number.isFinite(id)) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      const result = await deleteAccountShopPlan(id)
+      if (!result) {
+        reply.code(404).send({ error: 'NotFound', message: 'Plan not found' })
+        return
+      }
+      reply.send(result)
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/roboticvn/products', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const query = parseQuery(roboticvnProductsQuerySchema, request.query)
+      reply.send(await searchRoboticvnProductsForAdmin(query))
+    } catch (error) {
+      handleRouteError(error, reply, 'ADMIN')
+    }
+  })
+
+  app.get('/roboticvn/products/:id', { preHandler: mainAdminChain }, async (request, reply) => {
+    try {
+      const id = String((request.params as { id?: string }).id ?? '').trim()
+      if (!id) {
+        reply.code(400).send({ error: 'BadRequest', message: 'Invalid id' })
+        return
+      }
+      reply.send({ data: await getRoboticvnProductForAdmin(id) })
     } catch (error) {
       handleRouteError(error, reply, 'ADMIN')
     }

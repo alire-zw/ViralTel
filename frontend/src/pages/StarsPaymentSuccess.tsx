@@ -168,10 +168,10 @@ export function StarsPaymentSuccessPage() {
           className="stars-success-footer__secondary"
           onClick={() => {
             haptic('light')
-            navigate('/wallet', { replace: true })
+            navigate('/dashboard', { replace: true })
           }}
         >
-          بازگشت به کیف پول
+          داشبورد
         </button>
       </footer>
     </div>

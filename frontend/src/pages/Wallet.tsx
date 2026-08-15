@@ -352,7 +352,9 @@ export function WalletPage() {
     (transaction: WalletTransaction) => {
       haptic('light')
 
-      if (transaction.status === 'pending') {
+      // Only unpaid wallet charges / crypto deposits can be resumed.
+      // Shop purchases keep status "pending" while the order is processing.
+      if (transaction.status === 'pending' && transaction.type === 'deposit') {
         void handlePendingTransactionClick(transaction)
         return
       }

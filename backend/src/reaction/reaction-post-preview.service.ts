@@ -239,7 +239,7 @@ export async function fetchReactionPostPreview(rawLink: string): Promise<Reactio
       headers: {
         Accept: 'text/html,application/xhtml+xml',
         'User-Agent':
-          'Mozilla/5.0 (compatible; NumberStarBot/1.0; +https://t.me)',
+          'Mozilla/5.0 (compatible; ViralTelBot/1.0; +https://t.me)',
       },
     })
 

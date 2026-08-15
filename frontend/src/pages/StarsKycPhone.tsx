@@ -84,7 +84,7 @@ export function StarsKycPhonePage() {
       return
     }
 
-    navigate(getKycConfirmPath(kycState.product), {
+    navigate(getKycConfirmPath(kycState.product, kycState), {
       replace: true,
       state: toKycConfirmState(kycState),
     })

@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { env } from '../config/env.js'
@@ -11,7 +11,7 @@ const LOCAL_PROXY_ROOT = `http://127.0.0.1:${LOCAL_PROXY_PORT}`
 const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const proxyScript = path.join(backendRoot, 'scripts', 'telegram-api-proxy.ps1')
 
-let proxyProcess: ChildProcessWithoutNullStreams | null = null
+let proxyProcess: ChildProcess | null = null
 let resolvedApiRoot = env.TELEGRAM_API_ROOT
 
 export function getTelegramApiRoot(): string {
@@ -117,7 +117,7 @@ function startLocalProxyProcess(): void {
     port: LOCAL_PROXY_PORT,
   })
 
-  proxyProcess = spawn(
+  const child = spawn(
     'powershell.exe',
     [
       '-NoProfile',
@@ -134,8 +134,9 @@ function startLocalProxyProcess(): void {
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   )
+  proxyProcess = child
 
-  proxyProcess.stdout.on('data', (chunk: Buffer) => {
+  child.stdout?.on('data', (chunk: Buffer) => {
     const line = chunk
       .toString('utf8')
       .trim()
@@ -145,7 +146,7 @@ function startLocalProxyProcess(): void {
     }
   })
 
-  proxyProcess.stderr.on('data', (chunk: Buffer) => {
+  child.stderr?.on('data', (chunk: Buffer) => {
     const line = chunk
       .toString('utf8')
       .trim()
@@ -155,7 +156,7 @@ function startLocalProxyProcess(): void {
     }
   })
 
-  proxyProcess.on('exit', (code, signal) => {
+  child.on('exit', (code, signal) => {
     log.warn('TGPROXY', 'local proxy exited', {
       code: code ?? undefined,
       signal: signal ?? undefined,

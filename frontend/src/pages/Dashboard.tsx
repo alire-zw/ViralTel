@@ -20,9 +20,16 @@ import {
   type ShopOrder,
 } from '../lib/orders'
 import { shopCategories } from '../data/shopCategories'
-import { formatFaNumber, orderStatusLabel } from './admin/adminLabels'
+import { ACCOUNT_SHOP_CATEGORY_OPTIONS } from '../data/accountShopCategories'
+import { formatFaNumber, userOrderStatusLabel, userOrderStatusTone } from './admin/adminLabels'
 import '../styles/shop-rise.css'
 import './Dashboard.css'
+
+function accountShopCategoryMeta(order: ShopOrder) {
+  const categoryId = order.accountShopOrder?.accountCategoryId
+  if (!categoryId) return null
+  return ACCOUNT_SHOP_CATEGORY_OPTIONS.find((item) => item.id === categoryId) ?? null
+}
 
 function quantityLabel(order: ShopOrder): string {
   const qty = order.quantity
@@ -39,16 +46,11 @@ function quantityLabel(order: ShopOrder): string {
       return `${formatFaNumber(order.channelViewOrder?.quantity ?? qty ?? 0)} سین`
     case 'telegram-members':
       return `${formatFaNumber(order.telegramMemberOrder?.quantity ?? qty ?? 0)} ممبر`
+    case 'chatgpt':
+      return order.accountShopOrder?.planName ?? order.recipientName ?? order.category.label
     default:
       return order.category.label
   }
-}
-
-function statusTone(status: ShopOrder['status']): 'pending' | 'processing' | 'done' | 'failed' {
-  if (status === 'completed') return 'done'
-  if (status === 'failed' || status === 'cancelled') return 'failed'
-  if (status === 'processing') return 'processing'
-  return 'pending'
 }
 
 function orderTimeIso(order: ShopOrder): string {
@@ -177,10 +179,21 @@ export function HomePage() {
 
   const loading = (userLoading || ordersLoading) && !latestOrder
 
+  const accountCategory = latestOrder ? accountShopCategoryMeta(latestOrder) : null
   const categoryMeta = latestOrder
     ? shopCategories.find((item) => item.id === latestOrder.category.slug)
     : null
   const CategoryIcon = categoryMeta?.icon
+  const orderIconSrc = accountCategory?.stillImageSrc ?? accountCategory?.imageSrc ?? null
+  /** Account images use solid black/white (theme); other products keep category gradient. */
+  const orderIconBackground = orderIconSrc
+    ? undefined
+    : (categoryMeta?.gradient ?? 'var(--surface-elevated)')
+  const orderTitle =
+    accountCategory?.label ??
+    latestOrder?.accountShopOrder?.planName ??
+    latestOrder?.category.label ??
+    ''
 
   return (
     <div className="dash">
@@ -210,22 +223,24 @@ export function HomePage() {
             >
               <div className="dash__order-main">
                 <div
-                  className="dash__order-icon"
-                  style={{ background: categoryMeta?.gradient ?? 'var(--surface-elevated)' }}
+                  className={`dash__order-icon${orderIconSrc ? ' dash__order-icon--image' : ''}`}
+                  style={orderIconBackground ? { background: orderIconBackground } : undefined}
                 >
-                  {CategoryIcon ? (
+                  {orderIconSrc ? (
+                    <img src={orderIconSrc} alt="" width={44} height={44} />
+                  ) : CategoryIcon ? (
                     <CategoryIcon width={22} height={22} color={categoryMeta?.iconColor ?? '#fff'} />
                   ) : (
                     <ShopIcon width={22} height={22} color="#fff" />
                   )}
                 </div>
                 <div className="dash__order-copy">
-                  <strong className="dash__order-name">{latestOrder.category.label}</strong>
+                  <strong className="dash__order-name">{orderTitle}</strong>
                   <span className="dash__order-meta">{quantityLabel(latestOrder)}</span>
                 </div>
                 <div className="dash__order-side">
-                  <span className={`dash__badge dash__badge--${statusTone(latestOrder.status)}`}>
-                    {orderStatusLabel(latestOrder.status)}
+                  <span className={`dash__badge dash__badge--${userOrderStatusTone(latestOrder)}`}>
+                    {userOrderStatusLabel(latestOrder)}
                   </span>
                   <span className="dash__order-time">{formatRelativeFa(orderTimeIso(latestOrder))}</span>
                 </div>

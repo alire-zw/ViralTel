@@ -1,6 +1,6 @@
 import { getCountryFlagUrl } from './countryFlags'
 
-const DB_NAME = 'numberstar-country-flags'
+const DB_NAME = 'viraltel-country-flags'
 const STORE_NAME = 'flags'
 const MEMORY = new Map<string, string>()
 

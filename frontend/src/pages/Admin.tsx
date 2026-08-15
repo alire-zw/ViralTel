@@ -8,6 +8,7 @@ import DepositCryptoIcon from '../components/icons/DepositCryptoIcon'
 import FavouriteIcon from '../components/icons/FavouriteIcon'
 import IdIcon from '../components/icons/IdIcon'
 import MoneySendFlow02Icon from '../components/icons/money-send-flow-02-stroke-rounded'
+import OrderIcon from '../components/icons/OrderIcon'
 import PaymentHistoryIcon from '../components/icons/PaymentHistoryIcon'
 import RegularUserIcon from '../components/icons/RegularUserIcon'
 import TelegramIcon from '../components/icons/TelegramIcon'
@@ -230,6 +231,22 @@ export function AdminPage() {
       path: '/admin/shop-banners',
       tone: 'amber',
       Icon: ViewIcon,
+    },
+    {
+      id: 'account-plans',
+      label: 'پلن اکانت',
+      hint: 'فروشگاه',
+      path: '/admin/account-plans',
+      tone: 'teal',
+      Icon: IdIcon,
+    },
+    {
+      id: 'account-orders',
+      label: 'سفارش اکانت',
+      hint: 'تحویل',
+      path: '/admin/account-orders',
+      tone: 'lime',
+      Icon: OrderIcon,
     },
     {
       id: 'pricing',
@@ -541,7 +558,13 @@ export function AdminPage() {
                   key={order.orderId}
                   type="button"
                   className="admin-hub__feed-item"
-                  onClick={() => open(`/admin/orders/${encodeURIComponent(order.orderId)}`)}
+                  onClick={() =>
+                    open(
+                      order.category.slug === 'chatgpt'
+                        ? `/admin/account-orders/${encodeURIComponent(order.orderId)}`
+                        : `/admin/orders/${encodeURIComponent(order.orderId)}`,
+                    )
+                  }
                 >
                   <div className="admin-hub__feed-top">
                     <span className="admin-hub__feed-title">

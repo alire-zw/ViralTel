@@ -61,7 +61,7 @@ export function AdminToolsPage() {
             className="admin__input"
             value={supportUsername}
             onChange={(event) => setSupportUsername(event.target.value.replace(/^@+/, ''))}
-            placeholder="مثلاً NumberStarSupport"
+            placeholder="مثلاً ViralTelSupport"
             dir="ltr"
             style={{ textAlign: 'left' }}
           />

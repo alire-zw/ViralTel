@@ -3,6 +3,8 @@ import { toJalaali } from 'jalaali-js'
 export type OrderReportPayload = {
   orderId: string
   slug: string
+  /** Human product name shown in report channels (plan / brand for account shop). */
+  productLabel: string
   quantityLabel: string
   priceToman: number
   fulfilledAt: Date
@@ -126,7 +128,7 @@ export function buildPurchaseChannelOrderMessage(
     `🙋🏻‍♂️ ${boldLabel('UserName:')} <code>${escapeHtml(censorUsername(input.user.username))}</code>`,
     `📞 ${boldLabel('UserNumber:')} ${escapeHtml(censorPhone(input.user.phoneNumber))}`,
     '',
-    `⁉️ ${boldLabel('Order:')} ${escapeHtml(orderProductLabel(input.slug))}`,
+    `⁉️ ${boldLabel('Order:')} ${escapeHtml(input.productLabel)}`,
     `👀 ${boldLabel('Quintity:')} ${escapeHtml(input.quantityLabel)}`,
     '',
     `⏳ ${boldLabel('Time:')} ${escapeHtml(input.timeLabel)}`,
@@ -156,7 +158,7 @@ export function buildAdminChannelOrderMessage(
   }
 
   lines.push(
-    `⁉️ ${boldLabel('Order:')} ${escapeHtml(orderProductLabel(input.slug))}`,
+    `⁉️ ${boldLabel('Order:')} ${escapeHtml(input.productLabel)}`,
     `👀 ${boldLabel('Quantity:')} ${escapeHtml(input.quantityLabel)}`,
     `⏳ ${boldLabel('Time:')} ${escapeHtml(input.timeLabel)}`,
     `💸 ${boldLabel('Price:')} ${escapeHtml(formatPriceTomans(input.priceToman))}`,

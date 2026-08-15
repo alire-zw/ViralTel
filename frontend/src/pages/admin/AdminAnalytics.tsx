@@ -26,6 +26,7 @@ export function AdminAnalyticsPage() {
   const [overview, setOverview] = useState<AdminOverview | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [range, setRange] = useState<'weekly' | 'monthly'>('weekly')
+  const [chartMode, setChartMode] = useState<'sales' | 'profit'>('sales')
 
   const handleBack = useCallback(() => navigate('/admin', { replace: true }), [navigate])
 
@@ -44,13 +45,35 @@ export function AdminAnalyticsPage() {
     }
   }, [allowed, ready])
 
-  const chartPoints = useMemo(
+  const salesPoints = useMemo(
     () => (range === 'weekly' ? overview?.charts.weekly ?? [] : overview?.charts.monthly ?? []),
     [overview, range],
   )
+
+  const profitPoints = useMemo(() => {
+    const series =
+      range === 'weekly'
+        ? overview?.profit?.charts.weekly ?? []
+        : overview?.profit?.charts.monthly ?? []
+    return series.map((point) => ({
+      day: point.day,
+      amountToman: point.profitToman,
+      count: point.count,
+    }))
+  }, [overview, range])
+
+  const chartPoints = chartMode === 'sales' ? salesPoints : profitPoints
   const chartTotal = chartPoints.reduce((sum, point) => sum + (Number(point.amountToman) || 0), 0)
+
+  const profitSummary =
+    range === 'weekly' ? overview?.profit?.week : overview?.profit?.month
   const topViews = overview?.productViews.totals.slice(0, 6) ?? []
   const maxView = Math.max(...topViews.map((row) => Number(row.viewCount) || 0), 1)
+  const profitByCategory = overview?.profit?.byCategory ?? []
+  const maxProfit = Math.max(
+    ...profitByCategory.map((row) => Math.abs(Number(row.profitToman) || 0)),
+    1,
+  )
 
   if (!ready || !allowed) return null
 
@@ -78,6 +101,13 @@ export function AdminAnalyticsPage() {
           </strong>
           <span className="admin-kpi-card__hint">تومان</span>
         </div>
+        <div className="admin-kpi-card admin-kpi-card--lime">
+          <span className="admin-kpi-card__label">سود خالص امروز</span>
+          <strong className="admin-kpi-card__value">
+            {formatFaNumber(balanceToToman(overview?.profit?.today.profitToman ?? 0))}
+          </strong>
+          <span className="admin-kpi-card__hint">تومان</span>
+        </div>
         <div className="admin-kpi-card">
           <span className="admin-kpi-card__label">سفارش امروز</span>
           <strong className="admin-kpi-card__value">
@@ -96,21 +126,14 @@ export function AdminAnalyticsPage() {
             جدید {formatFaNumber(overview?.users.newToday ?? 0)}
           </span>
         </div>
-        <div className="admin-kpi-card">
-          <span className="admin-kpi-card__label">اوج آنلاین</span>
-          <strong className="admin-kpi-card__value">
-            {formatFaNumber(overview?.online.peakOnline ?? 0)}
-          </strong>
-          <span className="admin-kpi-card__hint">
-            کل سفارش {formatFaNumber(overview?.totals.orders ?? 0)}
-          </span>
-        </div>
       </div>
 
       <section className="admin-hub__panel">
         <div className="admin-hub__panel-head">
           <div>
-            <h2 className="admin-hub__panel-title">عملکرد فروش</h2>
+            <h2 className="admin-hub__panel-title">
+              {chartMode === 'sales' ? 'عملکرد فروش' : 'سود خالص'}
+            </h2>
             <p className="admin-hub__panel-sub">
               جمع {range === 'weekly' ? '۷ روز' : '۳۰ روز'}{' '}
               {formatFaNumber(balanceToToman(chartTotal))} تومان
@@ -139,16 +162,135 @@ export function AdminAnalyticsPage() {
             </button>
           </div>
         </div>
+        <div className="admin-hub__segment" style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className={`admin-hub__segment-btn${chartMode === 'sales' ? ' is-active' : ''}`}
+            onClick={() => {
+              haptic('light')
+              setChartMode('sales')
+            }}
+          >
+            فروش
+          </button>
+          <button
+            type="button"
+            className={`admin-hub__segment-btn${chartMode === 'profit' ? ' is-active' : ''}`}
+            onClick={() => {
+              haptic('light')
+              setChartMode('profit')
+            }}
+          >
+            سود
+          </button>
+        </div>
         {!overview ? (
           <p className="admin__muted" style={{ margin: 0 }}>
             در حال بارگذاری…
           </p>
         ) : chartPoints.length === 0 ? (
-          <EmptyState compact title="هنوز فروشی ثبت نشده" style={{ margin: 0 }} />
+          <EmptyState compact title="هنوز داده‌ای ثبت نشده" style={{ margin: 0 }} />
         ) : (
-          <AdminSalesChart points={chartPoints} onSelect={() => haptic('light')} />
+          <AdminSalesChart
+            points={chartPoints}
+            tipSuffix="تومان"
+            onSelect={() => haptic('light')}
+          />
         )}
       </section>
+
+      <section className="admin-hub__panel">
+        <div className="admin-hub__panel-head">
+          <div>
+            <h2 className="admin-hub__panel-title">خلاصه سود</h2>
+            <p className="admin-hub__panel-sub">
+              بر اساس هزینه تأمین و مارک‌آپ محصولات · {range === 'weekly' ? '۷ روز' : '۳۰ روز'}
+            </p>
+          </div>
+        </div>
+        {!overview || !profitSummary ? (
+          <p className="admin__muted" style={{ margin: 0 }}>
+            در حال بارگذاری…
+          </p>
+        ) : (
+          <>
+            <div className="admin-kpi-grid" style={{ paddingInline: 0, paddingBottom: 8 }}>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">فروش</span>
+                <strong className="admin-kpi-card__value">
+                  {formatFaNumber(balanceToToman(profitSummary.revenueToman))}
+                </strong>
+                <span className="admin-kpi-card__hint">تومان</span>
+              </div>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">هزینه</span>
+                <strong className="admin-kpi-card__value">
+                  {formatFaNumber(balanceToToman(profitSummary.costToman))}
+                </strong>
+                <span className="admin-kpi-card__hint">تومان</span>
+              </div>
+              <div className="admin-kpi-card admin-kpi-card--lime">
+                <span className="admin-kpi-card__label">سود خالص</span>
+                <strong className="admin-kpi-card__value">
+                  {formatFaNumber(balanceToToman(profitSummary.profitToman))}
+                </strong>
+                <span className="admin-kpi-card__hint">تومان</span>
+              </div>
+              <div className="admin-kpi-card">
+                <span className="admin-kpi-card__label">سفارش‌ها</span>
+                <strong className="admin-kpi-card__value">
+                  {formatFaNumber(profitSummary.orderCount)}
+                </strong>
+                <span className="admin-kpi-card__hint">
+                  با هزینه مشخص {formatFaNumber(profitSummary.knownCostCount)}
+                  {profitSummary.unknownCostCount > 0
+                    ? ` · نامشخص ${formatFaNumber(profitSummary.unknownCostCount)}`
+                    : ''}
+                </span>
+              </div>
+            </div>
+            {profitSummary.unknownCostCount > 0 && (
+              <p className="admin__muted" style={{ margin: '0 0 8px' }}>
+                سود خالص فقط روی سفارش‌هایی حساب می‌شود که هزینه تأمین‌شان از دیتابیس قابل
+                محاسبه باشد (مثلاً پلن‌های اکانت با قیمت ثابت در سود لحاظ نمی‌شوند).
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      <h5 className="admin__menu-title">سود به تفکیک محصول</h5>
+      {!overview ? (
+        <p className="admin__muted">در حال بارگذاری…</p>
+      ) : profitByCategory.length === 0 ? (
+        <EmptyState title="هنوز فروشی برای محاسبه سود نیست" />
+      ) : (
+        <div className="admin-view-list">
+          {profitByCategory.map((row, index) => {
+            const profit = balanceToToman(row.profitToman)
+            const width = Math.max(8, Math.round((Math.abs(profit) / maxProfit) * 100))
+            return (
+              <div key={row.slug} className="admin-view-row">
+                <div className="admin-view-row__head">
+                  <span className="admin-view-row__rank">{formatFaNumber(index + 1)}</span>
+                  <span className="admin-view-row__label">{row.label}</span>
+                  <span className="admin-view-row__count">
+                    {formatFaNumber(profit)} تومان
+                  </span>
+                </div>
+                <div className="admin-view-row__track">
+                  <div className="admin-view-row__fill" style={{ width: `${width}%` }} />
+                </div>
+                <div className="admin__row-meta" style={{ marginTop: 4 }}>
+                  فروش {formatFaNumber(balanceToToman(row.revenueToman))} · هزینه{' '}
+                  {formatFaNumber(balanceToToman(row.costToman))} ·{' '}
+                  {formatFaNumber(row.orderCount)} سفارش
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       <h5 className="admin__menu-title">بازدید محصولات</h5>
       {!overview ? (
@@ -189,9 +331,7 @@ export function AdminAnalyticsPage() {
                   <span className="admin__row-title">{productLabel(row.productKey)}</span>
                   <span className="admin__badge">{formatFaNumber(row.viewCount)}</span>
                 </div>
-                <div className="admin__row-meta">
-                  {formatFaDateLong(`${row.day}T12:00:00+03:30`)}
-                </div>
+                <div className="admin__row-meta">{formatFaDateLong(row.day)}</div>
               </div>
             </li>
           ))}

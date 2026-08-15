@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'numberstar:browser-session:v1'
+const STORAGE_KEY = 'viraltel:browser-session:v1'
 
 export type BrowserSession = {
   token: string

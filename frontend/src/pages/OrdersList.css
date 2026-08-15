@@ -49,6 +49,18 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.orders-list__card-icon--image {
+  background: transparent !important;
+}
+
+.orders-list__card-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .orders-list__card-body {

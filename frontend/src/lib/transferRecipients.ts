@@ -1,6 +1,6 @@
 import type { TransferRecipient } from '../types/transfer'
 
-const STORAGE_KEY = 'numberstar:transfer-recipients'
+const STORAGE_KEY = 'viraltel:transfer-recipients'
 const MAX_RECENT_RECIPIENTS = 20
 
 function readRecipients(): TransferRecipient[] {

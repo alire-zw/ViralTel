@@ -6,6 +6,7 @@ import { PageHeader } from '../components/PageHeader'
 import ContactIcon from '../components/icons/ContactIcon'
 import CopyIcon from '../components/icons/CopyIcon'
 import ShopIcon from '../components/icons/ShopIcon'
+import { ACCOUNT_SHOP_CATEGORY_OPTIONS } from '../data/accountShopCategories'
 import { shopCategories } from '../data/shopCategories'
 import { useTelegram } from '../hooks/useTelegram'
 import { isTelegramWebApp } from '../lib/api'
@@ -13,8 +14,8 @@ import { fetchOrder, type ShopOrder } from '../lib/orders'
 import {
   formatFaDateTimeLong,
   formatFaNumber,
-  orderStatusLabel,
   paymentMethodLabel,
+  userOrderStatusLabel,
 } from './admin/adminLabels'
 import '../styles/shop-rise.css'
 import './OrderDetail.css'
@@ -31,10 +32,19 @@ type DetailGroup = {
   cells: DetailCell[]
 }
 
-function statusValueClass(status: ShopOrder['status']): string {
-  if (status === 'completed') return 'order-detail__value--success'
-  if (status === 'failed' || status === 'cancelled') return 'order-detail__value--failed'
-  if (status === 'pending' || status === 'processing') return 'order-detail__value--pending'
+function statusValueClass(order: ShopOrder): string {
+  if (order.category.slug === 'chatgpt') {
+    if (order.status === 'failed' || order.status === 'cancelled') {
+      return 'order-detail__value--failed'
+    }
+    if (order.status === 'pending' || order.accountShopOrder?.status === 'processing') {
+      return 'order-detail__value--pending'
+    }
+    return 'order-detail__value--success'
+  }
+  if (order.status === 'completed') return 'order-detail__value--success'
+  if (order.status === 'failed' || order.status === 'cancelled') return 'order-detail__value--failed'
+  if (order.status === 'pending' || order.status === 'processing') return 'order-detail__value--pending'
   return ''
 }
 
@@ -51,11 +61,21 @@ function quantitySummary(order: ShopOrder): string | null {
       return `${formatFaNumber(order.channelViewOrder?.quantity ?? qty ?? 0)} سین`
     case 'telegram-members':
       return `${formatFaNumber(order.telegramMemberOrder?.quantity ?? qty ?? 0)} ممبر`
+    case 'chatgpt':
+      return order.accountShopOrder?.planName ?? order.recipientName ?? null
     case 'virtual-number':
       return order.recipientName?.trim() || order.virtualNumber?.country || null
     default:
       return null
   }
+}
+
+function accountShopStatusLabel(
+  status: NonNullable<ShopOrder['accountShopOrder']>['status'],
+): string {
+  if (status === 'delivered') return 'تحویل شده'
+  if (status === 'processing') return 'در حال پردازش'
+  return 'ثبت شده'
 }
 
 function paymentMethodText(order: ShopOrder): string {
@@ -77,12 +97,19 @@ function tomanValue(amount: number): ReactNode {
 }
 
 function Cell({ cell, onCopy }: { cell: DetailCell; onCopy: (value: string) => void }) {
+  const multiline =
+    typeof cell.value === 'string' &&
+    (cell.value.includes('\n') || cell.valueClassName === 'order-detail__value--multiline')
+
   return (
     <div className="order-detail__cell">
       <span className="order-detail__label">{cell.label}</span>
       <div className="order-detail__cell-value">
         <span
-          className={`order-detail__value${cell.valueClassName ? ` ${cell.valueClassName}` : ''}`}
+          className={`order-detail__value${cell.valueClassName ? ` ${cell.valueClassName}` : ''}${
+            multiline ? ' order-detail__value--multiline' : ''
+          }`}
+          dir="auto"
         >
           {cell.value}
         </span>
@@ -207,12 +234,20 @@ export function OrderDetailPage() {
     }
   }, [handleBack])
 
+  const accountCategory = useMemo(() => {
+    const categoryId = order?.accountShopOrder?.accountCategoryId
+    if (!categoryId) return null
+    return ACCOUNT_SHOP_CATEGORY_OPTIONS.find((item) => item.id === categoryId) ?? null
+  }, [order])
   const categoryMeta = useMemo(
     () => (order ? shopCategories.find((item) => item.id === order.category.slug) : null),
     [order],
   )
   const CategoryIcon = categoryMeta?.icon
+  const orderIconSrc = accountCategory?.stillImageSrc ?? accountCategory?.imageSrc ?? null
   const summary = order ? quantitySummary(order) : null
+  const orderTitle =
+    accountCategory?.label ?? order?.accountShopOrder?.planName ?? order?.category.label ?? ''
 
   const copyValue = async (value: string) => {
     try {
@@ -237,8 +272,8 @@ export function OrderDetailPage() {
             },
             {
               label: 'وضعیت',
-              value: orderStatusLabel(order.status),
-              valueClassName: statusValueClass(order.status),
+              value: userOrderStatusLabel(order),
+              valueClassName: statusValueClass(order),
             },
           ],
         },
@@ -280,11 +315,59 @@ export function OrderDetailPage() {
                 ]
               : [],
         },
+        ...(order.accountShopOrder
+          ? ([
+              {
+                cols: 2 as const,
+                cells: [
+                  {
+                    label: 'محصول',
+                    value: order.accountShopOrder.planName,
+                  },
+                  {
+                    label: 'وضعیت تحویل',
+                    value: accountShopStatusLabel(order.accountShopOrder.status),
+                    valueClassName:
+                      order.accountShopOrder.status === 'delivered'
+                        ? 'order-detail__value--success'
+                        : 'order-detail__value--pending',
+                  },
+                ],
+              },
+              {
+                cols: 2 as const,
+                cells: [
+                  {
+                    label: 'مدت',
+                    value: order.accountShopOrder.durationLabel || '—',
+                  },
+                  {
+                    label: 'گارانتی',
+                    value: order.accountShopOrder.warrantyLabel || '—',
+                  },
+                ],
+              },
+              ...order.accountShopOrder.customFields
+                .filter((field) => (order.accountShopOrder?.fieldValues[field.id] ?? '').trim())
+                .map((field) => ({
+                  cols: 1 as const,
+                  cells: [
+                    {
+                      label: field.label,
+                      value: order.accountShopOrder!.fieldValues[field.id],
+                      copyValue: order.accountShopOrder!.fieldValues[field.id],
+                    },
+                  ],
+                })),
+            ] satisfies DetailGroup[])
+          : []),
       ]
     : []
 
   const recipientGroups: DetailGroup[] = (() => {
     if (!order) return []
+    // Account shop has no recipient; plan name is stored on recipientName for display elsewhere.
+    if (order.category.slug === 'chatgpt') return []
 
     const cells: DetailCell[] = []
     if (order.recipientName) cells.push({ label: 'نام', value: order.recipientName })
@@ -310,8 +393,26 @@ export function OrderDetailPage() {
     return [{ cols: 2, cells }]
   })()
 
+  const deliveryGroups: DetailGroup[] = (() => {
+    if (!order?.accountShopOrder?.deliveryNote) return []
+    return [
+      {
+        cols: 1,
+        cells: [
+          {
+            label: 'متن تحویل',
+            value: order.accountShopOrder.deliveryNote,
+            copyValue: order.accountShopOrder.deliveryNote,
+            valueClassName: 'order-detail__value--multiline',
+          },
+        ],
+      },
+    ]
+  })()
+
   const productGroups: DetailGroup[] = (() => {
     if (!order) return []
+    if (order.accountShopOrder) return []
 
     if (order.virtualNumber) {
       return [
@@ -483,27 +584,33 @@ export function OrderDetailPage() {
               style={{ '--rise-index': 1 } as CSSProperties}
             >
               <div
-                className="order-detail__summary-icon"
-                style={{ background: categoryMeta?.gradient ?? 'var(--surface-elevated)' }}
+                className={`order-detail__summary-icon${orderIconSrc ? ' order-detail__summary-icon--image' : ''}`}
+                style={{
+                  background:
+                    accountCategory?.gradient ?? categoryMeta?.gradient ?? 'var(--surface-elevated)',
+                }}
               >
-                {CategoryIcon ? (
+                {orderIconSrc ? (
+                  <img src={orderIconSrc} alt="" width={40} height={40} />
+                ) : CategoryIcon ? (
                   <CategoryIcon width={20} height={20} color={categoryMeta?.iconColor ?? '#fff'} />
                 ) : (
                   <ShopIcon width={20} height={20} color="#fff" />
                 )}
               </div>
               <div className="order-detail__summary-text">
-                <div className="order-detail__summary-title">{order.category.label}</div>
+                <div className="order-detail__summary-title">{orderTitle}</div>
                 {summary ? <div className="order-detail__summary-meta">{summary}</div> : null}
               </div>
-              <span className={`order-detail__status ${statusValueClass(order.status)}`}>
-                {orderStatusLabel(order.status)}
+              <span className={`order-detail__status ${statusValueClass(order)}`}>
+                {userOrderStatusLabel(order)}
               </span>
             </div>
 
             <DetailCard title="اطلاعات سفارش" groups={generalGroups} onCopy={copyValue} riseIndex={2} />
             <DetailCard title="گیرنده" groups={recipientGroups} onCopy={copyValue} riseIndex={4} />
             <DetailCard title="جزئیات محصول" groups={productGroups} onCopy={copyValue} riseIndex={6} />
+            <DetailCard title="اطلاعات تحویل" groups={deliveryGroups} onCopy={copyValue} riseIndex={7} />
 
             <h3
               className="order-detail__section-title shop-rise"

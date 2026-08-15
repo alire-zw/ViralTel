@@ -11,7 +11,7 @@ export interface WalletTransactionsSyncPayload extends WalletTransactionsPayload
   changed: boolean
 }
 
-const STORAGE_KEY = 'numberstar:wallet-transactions:v3'
+const STORAGE_KEY = 'viraltel:wallet-transactions:v3'
 
 export function readLocalWalletTransactions(): WalletTransactionsPayload | null {
   try {

@@ -8,6 +8,7 @@ type OrderWithRelations = Prisma.OrderGetPayload<{
     reactionOrder: true
     channelViewOrder: true
     telegramMemberOrder: true
+    accountShopOrder: true
   }
 }>
 
@@ -64,6 +65,25 @@ export interface SerializedTelegramMemberOrder {
   providerOrderId: string | null
 }
 
+export interface SerializedAccountShopOrder {
+  planId: number
+  accountCategoryId: string
+  planName: string
+  durationLabel: string
+  warrantyLabel: string
+  fieldValues: Record<string, string>
+  customFields: Array<{
+    id: string
+    label: string
+    placeholder: string
+    required: boolean
+  }>
+  toman: number
+  status: 'registered' | 'processing' | 'delivered'
+  deliveryNote: string | null
+  deliveredAt: string | null
+}
+
 export interface SerializedOrder {
   orderId: string
   status: OrderWithCategory['status']
@@ -83,6 +103,7 @@ export interface SerializedOrder {
   reactionOrder: SerializedReactionOrder | null
   channelViewOrder: SerializedChannelViewOrder | null
   telegramMemberOrder: SerializedTelegramMemberOrder | null
+  accountShopOrder: SerializedAccountShopOrder | null
   createdAt: string
   fulfilledAt: string | null
   failedAt: string | null
@@ -190,6 +211,54 @@ function serializeTelegramMemberOrder(
   }
 }
 
+function asFieldValues(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const out: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof raw === 'string' && raw.trim()) out[key] = raw
+  }
+  return out
+}
+
+function asCustomFields(
+  value: unknown,
+): SerializedAccountShopOrder['customFields'] {
+  if (!Array.isArray(value)) return []
+  const fields: SerializedAccountShopOrder['customFields'] = []
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue
+    const row = item as Record<string, unknown>
+    const id = typeof row.id === 'string' ? row.id : ''
+    const label = typeof row.label === 'string' ? row.label : ''
+    if (!id || !label) continue
+    fields.push({
+      id,
+      label,
+      placeholder: typeof row.placeholder === 'string' ? row.placeholder : '',
+      required: row.required !== false,
+    })
+  }
+  return fields
+}
+
+function serializeAccountShopOrder(
+  item: NonNullable<OrderWithRelations['accountShopOrder']>,
+): SerializedAccountShopOrder {
+  return {
+    planId: item.planId,
+    accountCategoryId: item.accountCategoryId,
+    planName: item.planName,
+    durationLabel: item.durationLabel,
+    warrantyLabel: item.warrantyLabel,
+    fieldValues: asFieldValues(item.fieldValuesJson),
+    customFields: asCustomFields(item.customFieldsJson),
+    toman: item.toman,
+    status: item.status,
+    deliveryNote: item.deliveryNote,
+    deliveredAt: item.deliveredAt?.toISOString() ?? null,
+  }
+}
+
 export function serializeOrder(
   order: OrderWithCategory | OrderWithRelations,
 ): SerializedOrder {
@@ -213,6 +282,11 @@ export function serializeOrder(
       ? serializeTelegramMemberOrder(order.telegramMemberOrder)
       : null
 
+  const accountShopOrder =
+    'accountShopOrder' in order && order.accountShopOrder
+      ? serializeAccountShopOrder(order.accountShopOrder)
+      : null
+
   return {
     orderId: order.orderId,
     status: order.status,
@@ -232,6 +306,7 @@ export function serializeOrder(
     reactionOrder,
     channelViewOrder,
     telegramMemberOrder,
+    accountShopOrder,
     createdAt: order.createdAt.toISOString(),
     fulfilledAt: order.fulfilledAt?.toISOString() ?? null,
     failedAt: order.failedAt?.toISOString() ?? null,

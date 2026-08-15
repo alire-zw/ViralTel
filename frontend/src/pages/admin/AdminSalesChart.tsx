@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { balanceToToman } from '../../lib/api'
-import { formatFaDateLong, formatFaNumber } from './adminLabels'
+import { formatFaChartDay, formatFaDateLong, formatFaNumber } from './adminLabels'
 
 export type SalesChartPoint = {
   day: string
@@ -25,17 +25,19 @@ function formatCompactAmount(amount: number): string {
   return formatFaNumber(amount)
 }
 
-function dayIso(day: string): string {
-  return `${day}T12:00:00+03:30`
-}
-
 type AdminSalesChartProps = {
   points: SalesChartPoint[]
   compact?: boolean
   onSelect?: (point: SalesChartPoint) => void
+  tipSuffix?: string
 }
 
-export function AdminSalesChart({ points, compact = false, onSelect }: AdminSalesChartProps) {
+export function AdminSalesChart({
+  points,
+  compact = false,
+  onSelect,
+  tipSuffix = 'تومان',
+}: AdminSalesChartProps) {
   const values = useMemo(
     () => points.map((point) => balanceToToman(point.amountToman)),
     [points],
@@ -73,9 +75,9 @@ export function AdminSalesChart({ points, compact = false, onSelect }: AdminSale
       {!compact && active && (
         <div className="admin-chart__tip" role="status">
           <div className="admin-chart__tip-main">
-            <span className="admin-chart__tip-date">{formatFaDateLong(dayIso(active.day))}</span>
+            <span className="admin-chart__tip-date">{formatFaDateLong(active.day)}</span>
             <strong className="admin-chart__tip-amount">
-              {formatFaNumber(activeAmount)} تومان
+              {formatFaNumber(activeAmount)} {tipSuffix}
             </strong>
           </div>
           <div className="admin-chart__tip-meta">
@@ -109,7 +111,6 @@ export function AdminSalesChart({ points, compact = false, onSelect }: AdminSale
             {points.map((point, index) => {
               const amount = values[index] ?? 0
               const height = Math.max(amount > 0 ? 12 : 6, Math.round((amount / max) * 100))
-              const dayLabel = point.day.slice(8)
               const showLabel =
                 !compact && (index % step === 0 || index === points.length - 1 || index === activeIndex)
               const isActive = index === activeIndex
@@ -122,7 +123,7 @@ export function AdminSalesChart({ points, compact = false, onSelect }: AdminSale
                   className={`admin-chart__col${isActive ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}`}
                   onClick={() => select(index)}
                   aria-pressed={isActive}
-                  aria-label={`${formatFaDateLong(dayIso(point.day))}، ${formatFaNumber(amount)} تومان، ${formatFaNumber(point.count)} سفارش`}
+                  aria-label={`${formatFaDateLong(point.day)}، ${formatFaNumber(amount)} تومان، ${formatFaNumber(point.count)} سفارش`}
                 >
                   <div className="admin-chart__bar-wrap">
                     {showBarCaps && amount > 0 && (isActive || isPeak) && (
@@ -139,7 +140,7 @@ export function AdminSalesChart({ points, compact = false, onSelect }: AdminSale
                     />
                   </div>
                   {showLabel && (
-                    <span className="admin-chart__label">{formatFaNumber(Number(dayLabel))}</span>
+                    <span className="admin-chart__label">{formatFaChartDay(point.day)}</span>
                   )}
                 </button>
               )

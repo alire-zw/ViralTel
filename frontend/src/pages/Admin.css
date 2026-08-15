@@ -517,6 +517,9 @@
   min-height: 88px;
   padding: 10px 12px;
   resize: vertical;
+  white-space: pre-wrap;
+  direction: rtl;
+  text-align: right;
 }
 
 .admin__input:focus,
@@ -2554,6 +2557,16 @@ button.admin-pay__cell:disabled {
     linear-gradient(
       145deg,
       color-mix(in srgb, var(--hub-teal) 14%, var(--surface)) 0%,
+      var(--surface) 70%
+    );
+}
+
+.admin-kpi-card--lime {
+  border-color: color-mix(in srgb, var(--hub-lime) 26%, var(--border-subtle));
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--hub-lime) 14%, var(--surface)) 0%,
       var(--surface) 70%
     );
 }

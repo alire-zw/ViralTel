@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { env, webhookUrl } from '../config/env.js'
 import { setBotId, setBotUsername } from '../bot/profile.js'
 import { formatError, log } from '../lib/logger.js'
+import { isIgnorableTelegramDeliveryError } from './telegram-errors.js'
 import { getTelegramApiRoot } from './telegram-api-access.js'
 
 const WEBHOOK_SETUP_ATTEMPTS = 3
@@ -21,7 +22,23 @@ export function registerBotWebhook(app: FastifyInstance, bot: Bot): void {
     config: {
       rateLimit: false,
     },
-    handler,
+    handler: async (request, reply) => {
+      try {
+        return await handler(request, reply)
+      } catch (error) {
+        // grammY bot.catch does not apply in webhook mode; swallow user-block etc.
+        if (isIgnorableTelegramDeliveryError(error)) {
+          log.warn('WEBHOOK', 'ignored telegram delivery error', {
+            error: formatError(error),
+          })
+          if (!reply.sent) {
+            return reply.code(200).send({ ok: true, ignored: true })
+          }
+          return
+        }
+        throw error
+      }
+    },
   })
 
   log.info('WEBHOOK', 'route registered', { path: env.WEBHOOK_PATH })

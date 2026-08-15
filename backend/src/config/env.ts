@@ -34,7 +34,7 @@ const envSchema = z.object({
   TRONGRID_API_KEY: z.string().min(1),
   SWAPWALLET_API_KEY: z.string().min(1),
   SWAPWALLET_API_URL: z.string().url().default('https://swapwallet.app/api'),
-  SWAPWALLET_APP_NAME: z.string().min(1).default('numberstar'),
+  SWAPWALLET_APP_NAME: z.string().min(1).default('viraltel'),
   MARKETAPP_API_URL: z.string().url().default('https://api.marketapp.org'),
   MARKETAPP_API_TOKEN: z.string().min(1),
   CALLINOO_API_URL: z.string().url().default('https://api.ozvinoo.xyz'),
@@ -43,10 +43,15 @@ const envSchema = z.object({
   POWERTEL_API_KEY: z.string().min(1),
   CANBOSO_API_URL: z.string().url().default('https://canboso.com'),
   CANBOSO_BUYER_API_KEY: z.string().min(1),
+  ROBOTICVN_API_URL: z.string().url().default('https://api.roboticvn.com'),
+  ROBOTICVN_API_KEY: z.string().min(1).default(''),
   SMSIR_API_URL: z.string().url().default('https://api.sms.ir/v1'),
   SMSIR_API_KEY: z.string().min(1),
   SMSIR_VERIFY_TEMPLATE_ID: z.coerce.number().int().positive(),
   SMSIR_VERIFY_PARAM_NAME: z.string().min(1).default('Code'),
+  SMSIR_ACCOUNT_ORDER_RECEIVED_TEMPLATE_ID: z.coerce.number().int().positive().default(449030),
+  SMSIR_ACCOUNT_ORDER_DELIVERED_TEMPLATE_ID: z.coerce.number().int().positive().default(449030),
+  SMSIR_ACCOUNT_ORDER_PARAM_NAME: z.string().min(1).default('ORDER_ID'),
   /**
    * Temporary browser access for e-namad / SMS template review.
    * When true, APIs accept Authorization Bearer sessions and OTP login is enabled.

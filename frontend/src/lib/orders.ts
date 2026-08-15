@@ -70,6 +70,24 @@ export interface ShopOrder {
     toman: number
     providerOrderId: string | null
   } | null
+  accountShopOrder: {
+    planId: number
+    accountCategoryId: string
+    planName: string
+    durationLabel: string
+    warrantyLabel: string
+    fieldValues: Record<string, string>
+    customFields: Array<{
+      id: string
+      label: string
+      placeholder: string
+      required: boolean
+    }>
+    toman: number
+    status: 'registered' | 'processing' | 'delivered'
+    deliveryNote: string | null
+    deliveredAt: string | null
+  } | null
   createdAt: string
   fulfilledAt: string | null
   failedAt: string | null
@@ -85,7 +103,7 @@ export interface MyOrdersSyncPayload extends MyOrdersPayload {
   changed: boolean
 }
 
-const STORAGE_KEY = 'numberstar:my-orders:v1'
+const STORAGE_KEY = 'viraltel:my-orders:v1'
 
 export function readLocalMyOrders(): MyOrdersPayload | null {
   try {

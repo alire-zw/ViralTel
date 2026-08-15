@@ -1,7 +1,7 @@
 import { SHOP_HERO_CACHE_VERSION, shopHeroAssetUrls } from '../data/shopHeroAssets'
 import { warmAppleReactionEmojiCache } from './appleEmojiCache'
 
-const CACHE_NAME = `numberstar-shop-heroes-${SHOP_HERO_CACHE_VERSION}`
+const CACHE_NAME = `viraltel-shop-heroes-${SHOP_HERO_CACHE_VERSION}`
 
 export function registerAppAssetServiceWorker(): void {
   if (!('serviceWorker' in navigator)) return

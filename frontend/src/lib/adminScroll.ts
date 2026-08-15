@@ -1,5 +1,5 @@
 const APP_SCROLL_SELECTOR = '.app__scroll'
-const ADMIN_HUB_SCROLL_KEY = 'numberstar:admin-hub-scroll'
+const ADMIN_HUB_SCROLL_KEY = 'viraltel:admin-hub-scroll'
 
 function getScrollElement(): HTMLElement | null {
   return document.querySelector(APP_SCROLL_SELECTOR)

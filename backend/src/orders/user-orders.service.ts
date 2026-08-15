@@ -12,17 +12,27 @@ import type { CachedUserOrders, UserOrdersSyncResult } from './user-orders.types
 const LIST_LIMIT = 50
 
 async function buildUserOrdersVersion(userId: number): Promise<string> {
-  const aggregate = await prisma.order.aggregate({
-    where: { userId },
-    _max: { id: true, updatedAt: true, createdAt: true },
-    _count: true,
-  })
+  const [aggregate, accountShopAggregate] = await Promise.all([
+    prisma.order.aggregate({
+      where: { userId },
+      _max: { id: true, updatedAt: true, createdAt: true },
+      _count: true,
+    }),
+    prisma.accountShopOrder.aggregate({
+      where: { order: { userId } },
+      _max: { id: true, updatedAt: true },
+      _count: true,
+    }),
+  ])
 
   const fingerprint = JSON.stringify({
     count: aggregate._count,
     maxId: aggregate._max.id,
     maxUpdatedAt: aggregate._max.updatedAt?.toISOString() ?? null,
     maxCreatedAt: aggregate._max.createdAt?.toISOString() ?? null,
+    accountShopCount: accountShopAggregate._count,
+    accountShopMaxId: accountShopAggregate._max.id,
+    accountShopMaxUpdatedAt: accountShopAggregate._max.updatedAt?.toISOString() ?? null,
   })
 
   return createHash('sha256').update(fingerprint).digest('hex').slice(0, 16)

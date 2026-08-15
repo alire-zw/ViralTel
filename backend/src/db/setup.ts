@@ -64,7 +64,11 @@ function prismaClientIsStale(): boolean {
     !content.includes('BankCard') ||
     !content.includes('ProductViewStat') ||
     !content.includes('SiteOnlineStat') ||
-    !content.includes('ShopBanner')
+    !content.includes('ShopBanner') ||
+    !content.includes('AccountShopPlan') ||
+    !content.includes('noticeKind') ||
+    !content.includes('AccountShopOrder') ||
+    !content.includes('AccountShopOrderStatus')
   )
 }
 
@@ -110,6 +114,26 @@ async function databaseHasSiteOnlineStatsTable(connection: mysql.Connection): Pr
 
 async function databaseHasShopBannersTable(connection: mysql.Connection): Promise<boolean> {
   const [rows] = await connection.query('SHOW TABLES LIKE ?', ['shop_banners'])
+  return Array.isArray(rows) && rows.length > 0
+}
+
+async function databaseHasAccountShopPlansTable(connection: mysql.Connection): Promise<boolean> {
+  const [rows] = await connection.query('SHOW TABLES LIKE ?', ['account_shop_plans'])
+  return Array.isArray(rows) && rows.length > 0
+}
+
+async function databaseHasAccountShopOrdersTable(connection: mysql.Connection): Promise<boolean> {
+  const [rows] = await connection.query('SHOW TABLES LIKE ?', ['account_shop_orders'])
+  return Array.isArray(rows) && rows.length > 0
+}
+
+async function accountShopPlansTableHasColumn(
+  connection: mysql.Connection,
+  columnName: string,
+): Promise<boolean> {
+  const [rows] = await connection.query('SHOW COLUMNS FROM `account_shop_plans` WHERE Field = ?', [
+    columnName,
+  ])
   return Array.isArray(rows) && rows.length > 0
 }
 
@@ -314,6 +338,77 @@ export async function prepareDatabase(): Promise<void> {
           \`updated_at\` DATETIME(3) NOT NULL,
           PRIMARY KEY (\`id\`),
           INDEX \`shop_banners_is_active_sort_order_idx\` (\`is_active\`, \`sort_order\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
+      schemaChanged = true
+    } else if (!(await databaseHasAccountShopPlansTable(connection))) {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS \`account_shop_plans\` (
+          \`id\` INT NOT NULL AUTO_INCREMENT,
+          \`category_id\` VARCHAR(32) NOT NULL,
+          \`name\` VARCHAR(160) NOT NULL,
+          \`duration_label\` VARCHAR(96) NOT NULL,
+          \`warranty_type\` VARCHAR(16) NOT NULL,
+          \`warranty_days\` INT NULL,
+          \`roboticvn_product_id\` VARCHAR(64) NOT NULL,
+          \`roboticvn_variant_id\` VARCHAR(64) NOT NULL,
+          \`roboticvn_variant_title\` VARCHAR(255) NOT NULL,
+          \`pricing_mode\` VARCHAR(16) NOT NULL,
+          \`fixed_toman\` INT NULL,
+          \`markup_percent\` INT NOT NULL DEFAULT 0,
+          \`custom_fields\` JSON NOT NULL,
+          \`notice_kind\` VARCHAR(16) NOT NULL DEFAULT 'none',
+          \`notice_text\` VARCHAR(500) NULL,
+          \`sort_order\` INT NOT NULL DEFAULT 0,
+          \`is_active\` BOOLEAN NOT NULL DEFAULT true,
+          \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` DATETIME(3) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          INDEX \`account_shop_plans_category_active_sort_idx\` (\`category_id\`, \`is_active\`, \`sort_order\`),
+          INDEX \`account_shop_plans_variant_idx\` (\`roboticvn_variant_id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `)
+      schemaChanged = true
+    } else {
+      if (!(await accountShopPlansTableHasColumn(connection, 'notice_kind'))) {
+        await connection.query(
+          "ALTER TABLE `account_shop_plans` ADD COLUMN `notice_kind` VARCHAR(16) NOT NULL DEFAULT 'none' AFTER `custom_fields`",
+        )
+        schemaChanged = true
+      }
+      if (!(await accountShopPlansTableHasColumn(connection, 'notice_text'))) {
+        await connection.query(
+          'ALTER TABLE `account_shop_plans` ADD COLUMN `notice_text` VARCHAR(500) NULL AFTER `notice_kind`',
+        )
+        schemaChanged = true
+      }
+    }
+
+    if (!(await databaseHasAccountShopOrdersTable(connection))) {
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS \`account_shop_orders\` (
+          \`id\` INT NOT NULL AUTO_INCREMENT,
+          \`order_db_id\` INT NOT NULL,
+          \`plan_id\` INT NOT NULL,
+          \`account_category_id\` VARCHAR(32) NOT NULL,
+          \`plan_name\` VARCHAR(160) NOT NULL,
+          \`duration_label\` VARCHAR(96) NOT NULL,
+          \`warranty_label\` VARCHAR(96) NOT NULL,
+          \`field_values_json\` JSON NOT NULL,
+          \`custom_fields_json\` JSON NOT NULL,
+          \`toman\` INT NOT NULL,
+          \`status\` ENUM('registered', 'processing', 'delivered') NOT NULL DEFAULT 'registered',
+          \`delivered_at\` DATETIME(3) NULL,
+          \`created_at\` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+          \`updated_at\` DATETIME(3) NOT NULL,
+          PRIMARY KEY (\`id\`),
+          UNIQUE INDEX \`account_shop_orders_order_db_id_key\` (\`order_db_id\`),
+          INDEX \`account_shop_orders_plan_id_idx\` (\`plan_id\`),
+          INDEX \`account_shop_orders_account_category_id_idx\` (\`account_category_id\`),
+          INDEX \`account_shop_orders_status_idx\` (\`status\`),
+          CONSTRAINT \`account_shop_orders_order_db_id_fkey\`
+            FOREIGN KEY (\`order_db_id\`) REFERENCES \`orders\`(\`id\`)
+            ON DELETE CASCADE ON UPDATE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `)
       schemaChanged = true

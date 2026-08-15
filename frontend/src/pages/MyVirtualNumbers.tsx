@@ -391,7 +391,11 @@ export function MyVirtualNumbersPage() {
           const sync = await syncMyOrders(local.version)
           if (cancelled) return
           if (sync.changed) {
-            writeLocalMyOrders({ version: sync.version, items: sync.items })
+            writeLocalMyOrders({
+              version: sync.version,
+              cachedAt: new Date().toISOString(),
+              items: sync.items,
+            })
             setItems(filterVirtualNumberOrders(sync.items))
           } else {
             setItems(filterVirtualNumberOrders(local.items))
