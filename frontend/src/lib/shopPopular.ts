@@ -1,6 +1,6 @@
 import { apiFetch } from './api'
 
-const STORAGE_KEY = 'viraltel:shop-popular:v1'
+const STORAGE_KEY = 'viraltel:shop-popular:v2'
 
 export type ShopPopularItem = {
   productKey: string

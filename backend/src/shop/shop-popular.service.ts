@@ -7,7 +7,7 @@ import {
 import { SHOP_CATEGORIES } from '../orders/shop-category.data.js'
 import { SHOP_PRODUCT_KEYS } from '../analytics/analytics.schema.js'
 
-const CACHE_KEY = 'shop:popular:v2'
+const CACHE_KEY = 'shop:popular:v3'
 const CACHE_TTL_SECONDS = 10 * 60
 const LIMIT = 12
 
@@ -44,6 +44,25 @@ function normalizeProductKey(raw: string): string | null {
     return root
   }
   return null
+}
+
+/** Keep sold/viewed items first, then fill remaining slots from the full catalog. */
+function padWithCatalog(items: ShopPopularItem[], limit = LIMIT): ShopPopularItem[] {
+  const seen = new Set(items.map((item) => item.productKey))
+  const padded = [...items]
+
+  for (const productKey of SHOP_PRODUCT_KEYS) {
+    if (padded.length >= limit) break
+    if (seen.has(productKey)) continue
+    seen.add(productKey)
+    padded.push({
+      productKey,
+      label: labelFor(productKey),
+      count: 0,
+    })
+  }
+
+  return padded.slice(0, limit)
 }
 
 async function readCache(): Promise<ShopPopularPayload | null> {
@@ -156,8 +175,8 @@ export async function getShopPopularProducts(): Promise<ShopPopularPayload> {
 
   const fallback = fallbackItems()
   const payload: ShopPopularPayload = {
-    bestsellers: bestsellersRaw.length > 0 ? bestsellersRaw : fallback,
-    mostViewed: mostViewedRaw.length > 0 ? mostViewedRaw : fallback,
+    bestsellers: padWithCatalog(bestsellersRaw.length > 0 ? bestsellersRaw : fallback),
+    mostViewed: padWithCatalog(mostViewedRaw.length > 0 ? mostViewedRaw : fallback),
     cachedAt: new Date().toISOString(),
   }
 
